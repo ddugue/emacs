@@ -829,7 +829,13 @@ Return a list with the contents of the table cell."
    "c"  'magit-commit
    "a"  'magit-commit-amend
    "C"  'magit-commit-popup
+   "P"  'magit-push-popup
+   "pp" 'magit-push-current-to-upstream
+   "F"  'magit-pull-popup
+   "ff" 'magit-pull-from-upstream
    "bb" 'magit-checkout
+   "mm" 'magit-merge
+   "mp" 'magit-merge-preview
    "bc" 'magit-branch-and-checkout
    "B"  'magit-branch-popup
    "r"  'magit-refresh

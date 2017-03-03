@@ -535,7 +535,13 @@ Return a list with the contents of the table cell."
    "c"  'magit-commit
    "a"  'magit-commit-amend
    "C"  'magit-commit-popup
+   "P"  'magit-push-popup
+   "pp" 'magit-push-current-to-upstream
+   "F"  'magit-pull-popup
+   "ff" 'magit-pull-from-upstream
    "bb" 'magit-checkout
+   "mm" 'magit-merge
+   "mp" 'magit-merge-preview
    "bc" 'magit-branch-and-checkout
    "B"  'magit-branch-popup
    "r"  'magit-refresh
@@ -673,18 +679,3 @@ Return a list with the contents of the table cell."
   (insert (apply 'concat (reverse body-list)))
   (message (format "Wrote %d code blocks to init.el" (length body-list))))))
 
-(custom-set-variables
- ;; custom-set-variables was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- '(evil-want-Y-yank-to-eol t)
- '(package-selected-packages
-   (quote
-    (highlight-numbers yasnippet which-key virtualenvwrapper use-package projectile oneonone magit linum-relative key-chord ivy-hydra helm general flycheck fill-column-indicator evil-commentary counsel company-jedi column-marker))))
-(custom-set-faces
- ;; custom-set-faces was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- )
