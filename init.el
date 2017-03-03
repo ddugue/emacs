@@ -3,6 +3,8 @@
 (setq package-enable-at-startup nil)
 (add-to-list 'package-archives
              '("melpa" . "https://melpa.org/packages/"))
+(add-to-list 'package-archives
+             '("org"   . "http://orgmode.org/elpa/"))
 
 (package-initialize)
 
@@ -554,7 +556,6 @@ Return a list with the contents of the table cell."
 (use-package org
     :config
     (use-package org-bullets
-        :load-path "vendors/org-bullets"
         :config
         (add-hook 'org-mode-hook (lambda () (org-bullets-mode 1))))
 )
@@ -563,6 +564,11 @@ Return a list with the contents of the table cell."
 
 ;; Ensure tabs work properly inside source blocks
 (setq org-src-tab-acts-natively t)
+;; Enable org-drill
+(use-package org-plus-contrib
+    :ensure t
+    )
+
 (use-package org
    :general
    (:state '(insert normal visual)
@@ -571,7 +577,7 @@ Return a list with the contents of the table cell."
     "M-l" 'org-metaright)
 
    :config
-   ())
+   (add-to-list 'org-modules 'org-drill))
 (defun my/shell-open ()
   (interactive)
    (let ((project-root (if (projectile-project-p) (projectile-project-root) "~")))
@@ -662,6 +668,38 @@ Return a list with the contents of the table cell."
                     "hf" 'counsel-describe-function
                     "hv" 'counsel-describe-variable)
 
+(defun aj-toggle-fold ()
+  "Toggle fold all lines larger than indentation on current line"
+  (interactive)
+  (let ((col 1))
+    (save-excursion
+      (back-to-indentation)
+      (setq col (+ 1 (current-column)))
+      (set-selective-display
+       (if selective-display nil (or col 1))))))
+
+(use-package yaml-mode
+    :ensure t
+    :mode ("\\.yml" . yaml-mode)
+    :config
+
+    (general-define-key
+    :keymaps 'yaml-mode-map
+    :states '(normal visual)
+    "zz" 'aj-toggle-fold)
+
+    (add-hook 'yaml-mode-hook
+        (lambda () (progn
+            (face-remap-add-relative 'default '((:foreground "#E7C547")))
+            (highlight-numbers-mode t) ;; We like numbers highlighting
+            (setq highlight-indentation-offset 2)
+            (highlight-indentation-mode)
+            (highlight-indentation-current-column-mode)
+))))
+
+(use-package highlight-indentation
+    :ensure t
+    :commands (highlight-indentation-current-column-mode highlight-indentation-mode))
 ;; Utilities functions
 
 (defun my/tangle-init ()
@@ -673,18 +711,3 @@ Return a list with the contents of the table cell."
   (insert (apply 'concat (reverse body-list)))
   (message (format "Wrote %d code blocks to init.el" (length body-list))))))
 
-(custom-set-variables
- ;; custom-set-variables was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- '(evil-want-Y-yank-to-eol t)
- '(package-selected-packages
-   (quote
-    (highlight-numbers yasnippet which-key virtualenvwrapper use-package projectile oneonone magit linum-relative key-chord ivy-hydra helm general flycheck fill-column-indicator evil-commentary counsel company-jedi column-marker))))
-(custom-set-faces
- ;; custom-set-faces was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- )

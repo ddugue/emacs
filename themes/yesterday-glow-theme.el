@@ -138,6 +138,11 @@
    `(flycheck-error-list-error ((,class (:foreground ,err :inherit bold))))
    `(flycheck-error-list-warning ((,class (:foreground ,light-orange :inherit bold))))
    `(flycheck-error-list-info ((,class (:foreground ,blue :inherit bold))))
+
+   ;; Highlight indentation mode
+   `(highlight-indentation-face ((,class (:background ,even-less-dark))))
+   `(highlight-indentation-current-column-face ((,class (:background ,light))))
+
    ;; Org
    `(org-agenda-clocking ((,class (:background ,highlight :foreground ,comp))))
    `(org-agenda-date ((,class (:foreground ,var))))
@@ -145,9 +150,9 @@
    `(org-agenda-date-weekend ((,class (:inherit bold :foreground ,var))))
    `(org-agenda-done ((,class (:foreground ,suc ))))
    `(org-agenda-structure ((,class (:inherit bold :foreground ,comp))))
-   `(org-block ((,class (:foreground ,dark-orange))))
-   `(org-block-begin-line ((,class (:foreground ,dark-orange))))
-   `(org-block-end-line ((,class (:foreground ,dark-orange))))
+   `(org-block ((,class (:background ,lesser-dark))))
+   `(org-block-begin-line ((,class (:background ,lesser-dark :foreground ,dark-orange))))
+   `(org-block-end-line ((,class (:background ,lesser-dark :foreground ,dark-orange))))
    `(org-clock-overlay ((,class (:foreground ,comp))))
    `(org-code ((,class (:foreground ,teal))))
    `(org-column ((,class (:background ,highlight))))
