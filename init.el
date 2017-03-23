@@ -28,6 +28,8 @@
 (evil-mode 1)
 (define-key evil-motion-state-map (kbd "SPC") nil)
 (define-key evil-motion-state-map "," nil)
+(define-key evil-motion-state-map "zz" nil)
+(define-key evil-motion-state-map "za" nil)
 (define-key evil-normal-state-map (kbd "g,") nil)
 (global-unset-key (kbd "C-SPC"))
 ;; Install general only if it's not there
@@ -794,8 +796,27 @@ Return a list with the contents of the table cell."
          (highlight-numbers-mode t)
          ))))
 
+(use-package web-mode
+  :mode ("\\.html?\\'" . web-mode)
+  :config
+  (setq web-mode-markup-indent-offset 2)
+  (setq web-mode-enable-current-column-highlight t)
+  (setq web-mode-engines-alist '(("django" . "\\.html\\'")))
+  (add-hook 'web-mode-hook 'turn-off-fci-mode)
+  :general
+  (:keymaps 'web-mode-map
+   :states '(normal)
+   "zz" 'web-mode-fold-or-unfold)
+  (:keymaps 'web-mode-map
+   :prefix application-leader-key
+   "=" 'web-mode-buffer-indent)
+  :ensure t)
 (use-package conf-mode
   :mode "\\.pylintrc\\'")
+(use-package julia-mode
+  :mode ("\\.jl\\'" . julia-mode)
+  :ensure t)
+
 (general-define-key :prefix default-leader-key
                     "hf" 'counsel-describe-function
                     "hv" 'counsel-describe-variable)

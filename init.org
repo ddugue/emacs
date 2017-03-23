@@ -61,6 +61,8 @@ we must install the evil-mode and ensure it is globally installed
 (evil-mode 1)
 (define-key evil-motion-state-map (kbd "SPC") nil)
 (define-key evil-motion-state-map "," nil)
+(define-key evil-motion-state-map "zz" nil)
+(define-key evil-motion-state-map "za" nil)
 (define-key evil-normal-state-map (kbd "g,") nil)
 (global-unset-key (kbd "C-SPC"))
 #+END_SRC
@@ -1142,7 +1144,25 @@ Configuration of dired
          ))))
 
 #+END_SRC
-** TODO Html
+** Html
+*** Web mode
+#+BEGIN_SRC emacs-lisp
+(use-package web-mode
+  :mode ("\\.html?\\'" . web-mode)
+  :config
+  (setq web-mode-markup-indent-offset 2)
+  (setq web-mode-enable-current-column-highlight t)
+  (setq web-mode-engines-alist '(("django" . "\\.html\\'")))
+  (add-hook 'web-mode-hook 'turn-off-fci-mode)
+  :general
+  (:keymaps 'web-mode-map
+   :states '(normal)
+   "zz" 'web-mode-fold-or-unfold)
+  (:keymaps 'web-mode-map
+   :prefix application-leader-key
+   "=" 'web-mode-buffer-indent)
+  :ensure t)
+#+END_SRC
 ** TODO Javascript
 ** TODO CSS
 ** TODO JSON
@@ -1154,6 +1174,13 @@ Configuration of dired
   :mode "\\.pylintrc\\'")
 #+END_SRC
 ** TODO XML
+** JULIA
+#+BEGIN_SRC emacs-lisp
+(use-package julia-mode
+  :mode ("\\.jl\\'" . julia-mode)
+  :ensure t)
+
+#+END_SRC
 ** LISP
 *** Help
 #+BEGIN_SRC emacs-lisp
