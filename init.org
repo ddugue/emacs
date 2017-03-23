@@ -11,9 +11,8 @@ First off we configure to enable melpa only as the archives
 (require 'package)
 (setq package-enable-at-startup nil)
 (add-to-list 'package-archives
-             '("melpa" . "https://melpa.org/packages/"))
-(add-to-list 'package-archives
-             '("org"   . "http://orgmode.org/elpa/"))
+             '("melpa" . "https://melpa.org/packages/")
+             '("org" . "http://orgmode.org/elpa/"))
 
 (package-initialize)
 
@@ -112,6 +111,7 @@ Hydra is used to create semi mode-state. It's mostly an util
 
 #+END_SRC
 ** Movement keys
+*** TODO Bind J and K to scroll up
 *** Remap Y to y$ instead of yy
 #+BEGIN_SRC emacs-lisp
 (customize-set-variable 'evil-want-Y-yank-to-eol t)
@@ -128,7 +128,7 @@ Easy auto-commenting functions
 Folding of code structure, normally goes to za, we rebind it to zz
 #+BEGIN_SRC emacs-lisp
 (general-define-key
-    :states '(normal visual)
+    :keymaps '(evil-normal-state-map evil-motion-state-map)
     "za" 'evil-close-folds
     "zz" 'evil-toggle-fold)
 #+END_SRC
@@ -148,6 +148,16 @@ MANY reasons. Check the flame ware online
 #+BEGIN_SRC emacs-lisp :tangle yes
 (setq-default tab-width 4)
 (setq-default indent-tabs-mode nil)
+#+END_SRC
+
+** Surrounding
+
+*** Installation of Evil-surround
+#+BEGIN_SRC emacs-lisp
+(use-package evil-surround
+  :ensure t
+  :init
+  (global-evil-surround-mode t))
 #+END_SRC
 ** TODO i18n
 * 3.Completion framework
@@ -836,8 +846,6 @@ Return a list with the contents of the table cell."
    "F"  'magit-pull-popup
    "ff" 'magit-pull-from-upstream
    "bb" 'magit-checkout
-   "mm" 'magit-merge
-   "mp" 'magit-merge-preview
    "bc" 'magit-branch-and-checkout
    "B"  'magit-branch-popup
    "r"  'magit-refresh
@@ -853,9 +861,113 @@ Return a list with the contents of the table cell."
 )
 #+END_SRC
 *** TODO Add column mode for git commit message
+** Smerge
+*** Configuration
+#+BEGIN_SRC emacs-lisp
+(use-package smerge-mode
+   :general
+  (:keymaps 'smerge-mode-map
+   :prefix application-leader-key
+   "RET" 'smerge-keep-current
+   "SPC" 'smerge-keep-other
+   "d"   'smerge-keep-base
+   "a"   'smerge-keep-all
+   "r"   'smerge-resolve
+   "n"   'smerge-next
+   "N"   'smerge-prev))
+(general-define-key
+   :states '(normal visual)
+   :keymaps 'smerge-mode-map
+   :prefix application-leader-key
+   "RET" 'smerge-keep-current
+   "SPC" 'smerge-keep-other
+   "d"   'smerge-kill-current
+   "r"   'smerge-resolve
+   "n"   'smerge-next
+   "N"   'smerge-prev)
+#+END_SRC
 * 10.Applications & Tools
-** TODO Directory manager
-** TODO Git
+** Directory manager
+Configuration of dired
+#+BEGIN_SRC emacs-lisp
+    (defun my/touch-file (filename)
+      "Create a file into the current directory"
+      (interactive "sName of the file:")
+      (shell-command (concat "touch " (shell-quote-argument filename)))
+      (revert-buffer)
+    )
+
+    (defun my/dired-toggle-mark ()
+      "Toggle a mark"
+      (interactive)
+      (save-restriction
+        (narrow-to-region (point-at-bol) (point-at-eol))
+        (dired-toggle-marks))
+    )
+
+    (defun my/wdired-commit ()
+      "Commit edits and come back in wdired mode"
+      (interactive)
+      (wdired-finish-edit)
+      (revert-buffer)
+      (wdired-change-to-wdired-mode)
+      (evil-normal-state)
+    )
+
+    (defun my/enter-wdired-and-change ()
+      (interactive)
+      (wdired-change-to-wdired-mode)
+      (evil-normal-state))
+
+
+    (defun my/enter-wdired-and-delete ()
+      (interactive)
+      (wdired-change-to-wdired-mode)
+      (evil-normal-state)
+      (evil-delete))
+    (defun my/setup-dired (fun &rest args)
+       (message "Dired started")
+       (let ((res (apply fun args)))
+          (message "Dired stopped")
+           res))
+
+    (use-package dired-ranger
+      :ensure t
+      :commands (dired-ranger-move dired-ranger-paste dired-ranger-copy))
+
+    (use-package wdired
+      :ensure t)
+    (use-package dired
+      :commands (dired)
+      :bind
+      (:map dired-mode-map
+       ("SPC" . nil))
+      :general
+      (:states '(normal visual)
+       :keymaps 'wdired-mode-map
+       "<C-return>" 'my/wdired-commit
+       "<return>" 'dired-find-file
+       "m" 'my/dired-toggle-mark
+       "dd" 'dired-do-delete
+       "zz" 'dired-maybe-insert-subdir
+      )
+      (:states '(normal visual)
+       :keymaps '(dired-mode-map wdired-mode-map)
+       :prefix application-leader-key
+       "!"  'dired-do-shell-command
+       "i"  'dired-create-directory
+       "a"  'my/touch-file
+       "y" 'dired-ranger-copy
+       "p" 'dired-ranger-paste
+       "m" 'dired-ranger-move
+       "%" 'dired-mark-files-regexp)
+      :config
+      (add-hook 'dired-after-readin-hook
+                (lambda ()
+                        (unless (member 'wdired-mode (mapcar #'car minor-mode-alist))
+                                (my/enter-wdired-and-change)
+                         ))))
+#+END_SRC
 ** TODO Email
 ** TODO IRC
 ** TODO Ledger
@@ -870,6 +982,7 @@ Return a list with the contents of the table cell."
 (use-package org
     :config
     (use-package org-bullets
+        :ensure t
         :config
         (add-hook 'org-mode-hook (lambda () (org-bullets-mode 1))))
 )
@@ -883,15 +996,6 @@ Return a list with the contents of the table cell."
 ;; Ensure tabs work properly inside source blocks
 (setq org-src-tab-acts-natively t)
 #+END_SRC
-*** Org drill
-
-#+BEGIN_SRC emacs-lisp
-;; Enable org-drill
-(use-package org-plus-contrib
-    :ensure t
-    )
-
-#+END_SRC
 *** Org mode
 #+BEGIN_SRC emacs-lisp
 (use-package org
@@ -899,10 +1003,11 @@ Return a list with the contents of the table cell."
    (:state '(insert normal visual)
     :keymaps 'org-mode-map
     "M-h" 'org-metaleft
-    "M-l" 'org-metaright)
-
+    "M-l" 'org-metaright
+    "H"   'org-shiftleft
+    "L"   'org-shiftright)
    :config
-   (add-to-list 'org-modules 'org-drill))
+   ())
 #+END_SRC
 ** Shell
 *** Ansi-term
@@ -913,7 +1018,7 @@ Return a list with the contents of the table cell."
          (progn
            (message project-root)
            (pop-to-buffer "*ansi-term*")
-           (ansi-term "bash" "ansi-term")
+           (ansi-term "zsh" "ansi-term")
            (end-of-buffer)
            (insert (concat "cd " project-root))
            (term-send-input)
@@ -946,6 +1051,40 @@ Return a list with the contents of the table cell."
        )
     )
 )
+#+END_SRC
+** EWW (Web browsing)
+
+#+BEGIN_SRC emacs-lisp
+(use-package eww-lnum
+  :ensure t
+  )
+
+(use-package eww
+  :general
+  (:prefix default-leader-key
+           "aw" 'eww)
+  (:keymaps 'eww-mode-map
+   :prefix application-leader-key
+           "r" 'eww-reload
+           "<return>" 'eww-browse-with-external-browser
+           "z" 'eww-readable
+           "v" 'eww-view-source
+           "y" 'eww-copy-page-url
+           "b" 'eww-add-bookmark)
+  (:keymaps 'eww-mode-map
+   :states '(normal)
+   "<C-return>" 'eww-submit
+   "f" 'eww-lnum-follow
+   ";" 'eww-lnum-universal
+   "g" 'eww
+   "b" 'eww-back-url
+   "J" 'evil-scroll-down
+   "K" 'evil-scroll-up
+  )
+  :config
+  (setq eww-search-prefix "https://www.google.com/search?q=")
+)
+
 #+END_SRC
 * 11.Programming languages
 ** Python
@@ -1023,50 +1162,32 @@ Return a list with the contents of the table cell."
                     "hv" 'counsel-describe-variable)
 
 #+END_SRC
-** YAML
-Install yaml mode
-
+** YAMl
 #+BEGIN_SRC emacs-lisp
-(defun aj-toggle-fold ()
-  "Toggle fold all lines larger than indentation on current line"
-  (interactive)
-  (let ((col 1))
-    (save-excursion
-      (back-to-indentation)
-      (setq col (+ 1 (current-column)))
-      (set-selective-display
-       (if selective-display nil (or col 1))))))
-
-(use-package yaml-mode
+  (use-package yaml-mode
     :ensure t
-    :mode ("\\.yml" . yaml-mode)
+    :mode ("\\.yml\\'" . yaml-mode)
     :config
-
-    (general-define-key
-    :keymaps 'yaml-mode-map
-    :states '(normal visual)
-    "zz" 'aj-toggle-fold)
-
     (add-hook 'yaml-mode-hook
-        (lambda () (progn
-            (face-remap-add-relative 'default '((:foreground "#E7C547")))
-            (highlight-numbers-mode t) ;; We like numbers highlighting
-            (setq highlight-indentation-offset 2)
-            (highlight-indentation-mode)
-            (highlight-indentation-current-column-mode)
-))))
-
+      (lambda ()
+        (progn (highlight-numbers-mode)
+        (face-remap-add-relative 'font-lock-variable-name-face '(:foreground "#E7C547"))
+        (face-remap-add-relative 'default '(:foreground "#FF8100")))))
+    ;; :general
+    ;; (:prefix default-leader-key
+    ;;  "gg" 'magit-status)
+    ;; (:states '(normal visual)
+    ;;  :keymaps 'magit-status-mode-map
+    ;;  "j" 'magit-section-forward
+    ;;  "k" 'magit-section-backward
+    ;;  "J" 'magit-section-forward-sibling
+    ;;  "K" 'magit-section-backward-sibling
+    ;;  "v" 'evil-magit/toggle
+    ;;  "zz" 'magit-section-toggle
+    ;;  "d" 'magit-discard
+    ;;  )
+  )
 #+END_SRC
-
-Install highlight indentation mode
-#+BEGIN_SRC emacs-lisp
-(use-package highlight-indentation
-    :ensure t
-    :commands (highlight-indentation-current-column-mode highlight-indentation-mode))
-#+END_SRC
-Tweak settings to highlight variable content
-
-Fold elements by default
 * A.Elisp Utilities
 This function is called by the save hook on init.org to trigger automatically a tangling
 

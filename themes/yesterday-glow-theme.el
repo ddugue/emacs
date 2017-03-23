@@ -143,6 +143,13 @@
    `(highlight-indentation-face ((,class (:background ,even-less-dark))))
    `(highlight-indentation-current-column-face ((,class (:background ,light))))
 
+   ;; Terminal
+   `(term-color-yellow ((,class (:foreground ,yellow))))
+   `(term-color-green ((,class (:foreground ,lime))))
+   `(term-color-red ((,class (:foreground ,red))))
+   `(term-color-blue ((,class (:foreground ,blue))))
+   `(term-color-cyan ((,class (:foreground ,teal))))
+   `(term-color-magenta ((,class (:foreground ,purple))))
    ;; Org
    `(org-agenda-clocking ((,class (:background ,highlight :foreground ,comp))))
    `(org-agenda-date ((,class (:foreground ,var))))
@@ -151,6 +158,7 @@
    `(org-agenda-done ((,class (:foreground ,suc ))))
    `(org-agenda-structure ((,class (:inherit bold :foreground ,comp))))
    `(org-block ((,class (:background ,lesser-dark))))
+   `(org-block-background ((,class (:background ,lesser-dark))))
    `(org-block-begin-line ((,class (:background ,lesser-dark :foreground ,dark-orange))))
    `(org-block-end-line ((,class (:background ,lesser-dark :foreground ,dark-orange))))
    `(org-clock-overlay ((,class (:foreground ,comp))))

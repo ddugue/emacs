@@ -2,9 +2,8 @@
 (require 'package)
 (setq package-enable-at-startup nil)
 (add-to-list 'package-archives
-             '("melpa" . "https://melpa.org/packages/"))
-(add-to-list 'package-archives
-             '("org"   . "http://orgmode.org/elpa/"))
+             '("melpa" . "https://melpa.org/packages/")
+             '("org" . "http://orgmode.org/elpa/"))
 
 (package-initialize)
 
@@ -66,13 +65,17 @@
     :general
     (";" 'evil-commentary))
 (general-define-key
-    :states '(normal visual)
+    :keymaps '(evil-normal-state-map evil-motion-state-map)
     "za" 'evil-close-folds
     "zz" 'evil-toggle-fold)
 ;; Remove trailing whitespaces before save
 (add-hook 'before-save-hook 'delete-trailing-whitespace)
 (setq-default tab-width 4)
 (setq-default indent-tabs-mode nil)
+(use-package evil-surround
+  :ensure t
+  :init
+  (global-evil-surround-mode t))
 (defun my/ivy-get-selection ()
     "Returns the selected ivy text"
     (expand-file-name ivy--current ivy--directory))
@@ -542,8 +545,6 @@ Return a list with the contents of the table cell."
    "F"  'magit-pull-popup
    "ff" 'magit-pull-from-upstream
    "bb" 'magit-checkout
-   "mm" 'magit-merge
-   "mp" 'magit-merge-preview
    "bc" 'magit-branch-and-checkout
    "B"  'magit-branch-popup
    "r"  'magit-refresh
@@ -557,11 +558,110 @@ Return a list with the contents of the table cell."
    (evil-set-initial-state 'magit-status-mode 'normal)
    (setq magit-commit-show-diff nil)
 )
+(use-package smerge-mode
+   :general
+  (:keymaps 'smerge-mode-map
+   :prefix application-leader-key
+   "RET" 'smerge-keep-current
+   "SPC" 'smerge-keep-other
+   "d"   'smerge-keep-base
+   "a"   'smerge-keep-all
+   "r"   'smerge-resolve
+   "n"   'smerge-next
+   "N"   'smerge-prev))
+(general-define-key
+   :states '(normal visual)
+   :keymaps 'smerge-mode-map
+   :prefix application-leader-key
+   "RET" 'smerge-keep-current
+   "SPC" 'smerge-keep-other
+   "d"   'smerge-kill-current
+   "r"   'smerge-resolve
+   "n"   'smerge-next
+   "N"   'smerge-prev)
+    (defun my/touch-file (filename)
+      "Create a file into the current directory"
+      (interactive "sName of the file:")
+      (shell-command (concat "touch " (shell-quote-argument filename)))
+      (revert-buffer)
+    )
+
+    (defun my/dired-toggle-mark ()
+      "Toggle a mark"
+      (interactive)
+      (save-restriction
+        (narrow-to-region (point-at-bol) (point-at-eol))
+        (dired-toggle-marks))
+    )
+
+    (defun my/wdired-commit ()
+      "Commit edits and come back in wdired mode"
+      (interactive)
+      (wdired-finish-edit)
+      (revert-buffer)
+      (wdired-change-to-wdired-mode)
+      (evil-normal-state)
+    )
+
+    (defun my/enter-wdired-and-change ()
+      (interactive)
+      (wdired-change-to-wdired-mode)
+      (evil-normal-state))
+
+
+    (defun my/enter-wdired-and-delete ()
+      (interactive)
+      (wdired-change-to-wdired-mode)
+      (evil-normal-state)
+      (evil-delete))
+    (defun my/setup-dired (fun &rest args)
+       (message "Dired started")
+       (let ((res (apply fun args)))
+          (message "Dired stopped")
+           res))
+
+    (use-package dired-ranger
+      :ensure t
+      :commands (dired-ranger-move dired-ranger-paste dired-ranger-copy))
+
+    (use-package wdired
+      :ensure t)
+    (use-package dired
+      :commands (dired)
+      :bind
+      (:map dired-mode-map
+       ("SPC" . nil))
+      :general
+      (:states '(normal visual)
+       :keymaps 'wdired-mode-map
+       "<C-return>" 'my/wdired-commit
+       "<return>" 'dired-find-file
+       "m" 'my/dired-toggle-mark
+       "dd" 'dired-do-delete
+       "zz" 'dired-maybe-insert-subdir
+      )
+      (:states '(normal visual)
+       :keymaps '(dired-mode-map wdired-mode-map)
+       :prefix application-leader-key
+       "!"  'dired-do-shell-command
+       "i"  'dired-create-directory
+       "a"  'my/touch-file
+       "y" 'dired-ranger-copy
+       "p" 'dired-ranger-paste
+       "m" 'dired-ranger-move
+       "%" 'dired-mark-files-regexp)
+      :config
+      (add-hook 'dired-after-readin-hook
+                (lambda ()
+                        (unless (member 'wdired-mode (mapcar #'car minor-mode-alist))
+                                (my/enter-wdired-and-change)
+                         ))))
 (setq org-hide-leading-stars t) ;; Ensure that we hide the number of stars before the first one
 (setq org-startup-indented t) ;; Ensure we indent all the content
 (use-package org
     :config
     (use-package org-bullets
+        :ensure t
         :config
         (add-hook 'org-mode-hook (lambda () (org-bullets-mode 1))))
 )
@@ -570,27 +670,23 @@ Return a list with the contents of the table cell."
 
 ;; Ensure tabs work properly inside source blocks
 (setq org-src-tab-acts-natively t)
-;; Enable org-drill
-(use-package org-plus-contrib
-    :ensure t
-    )
-
 (use-package org
    :general
    (:state '(insert normal visual)
     :keymaps 'org-mode-map
     "M-h" 'org-metaleft
-    "M-l" 'org-metaright)
-
+    "M-l" 'org-metaright
+    "H"   'org-shiftleft
+    "L"   'org-shiftright)
    :config
-   (add-to-list 'org-modules 'org-drill))
+   ())
 (defun my/shell-open ()
   (interactive)
    (let ((project-root (if (projectile-project-p) (projectile-project-root) "~")))
          (progn
            (message project-root)
            (pop-to-buffer "*ansi-term*")
-           (ansi-term "bash" "ansi-term")
+           (ansi-term "zsh" "ansi-term")
            (end-of-buffer)
            (insert (concat "cd " project-root))
            (term-send-input)
@@ -618,6 +714,36 @@ Return a list with the contents of the table cell."
        )
     )
 )
+(use-package eww-lnum
+  :ensure t
+  )
+
+(use-package eww
+  :general
+  (:prefix default-leader-key
+           "aw" 'eww)
+  (:keymaps 'eww-mode-map
+   :prefix application-leader-key
+           "r" 'eww-reload
+           "<return>" 'eww-browse-with-external-browser
+           "z" 'eww-readable
+           "v" 'eww-view-source
+           "y" 'eww-copy-page-url
+           "b" 'eww-add-bookmark)
+  (:keymaps 'eww-mode-map
+   :states '(normal)
+   "<C-return>" 'eww-submit
+   "f" 'eww-lnum-follow
+   ";" 'eww-lnum-universal
+   "g" 'eww
+   "b" 'eww-back-url
+   "J" 'evil-scroll-down
+   "K" 'evil-scroll-up
+  )
+  :config
+  (setq eww-search-prefix "https://www.google.com/search?q=")
+)
+
 (defun my/set-venv ()
   (interactive)
   (require 'projectile)
@@ -674,38 +800,29 @@ Return a list with the contents of the table cell."
                     "hf" 'counsel-describe-function
                     "hv" 'counsel-describe-variable)
 
-(defun aj-toggle-fold ()
-  "Toggle fold all lines larger than indentation on current line"
-  (interactive)
-  (let ((col 1))
-    (save-excursion
-      (back-to-indentation)
-      (setq col (+ 1 (current-column)))
-      (set-selective-display
-       (if selective-display nil (or col 1))))))
-
-(use-package yaml-mode
+  (use-package yaml-mode
     :ensure t
-    :mode ("\\.yml" . yaml-mode)
+    :mode ("\\.yml\\'" . yaml-mode)
     :config
-
-    (general-define-key
-    :keymaps 'yaml-mode-map
-    :states '(normal visual)
-    "zz" 'aj-toggle-fold)
-
     (add-hook 'yaml-mode-hook
-        (lambda () (progn
-            (face-remap-add-relative 'default '((:foreground "#E7C547")))
-            (highlight-numbers-mode t) ;; We like numbers highlighting
-            (setq highlight-indentation-offset 2)
-            (highlight-indentation-mode)
-            (highlight-indentation-current-column-mode)
-))))
-
-(use-package highlight-indentation
-    :ensure t
-    :commands (highlight-indentation-current-column-mode highlight-indentation-mode))
+      (lambda ()
+        (progn (highlight-numbers-mode)
+        (face-remap-add-relative 'font-lock-variable-name-face '(:foreground "#E7C547"))
+        (face-remap-add-relative 'default '(:foreground "#FF8100")))))
+    ;; :general
+    ;; (:prefix default-leader-key
+    ;;  "gg" 'magit-status)
+    ;; (:states '(normal visual)
+    ;;  :keymaps 'magit-status-mode-map
+    ;;  "j" 'magit-section-forward
+    ;;  "k" 'magit-section-backward
+    ;;  "J" 'magit-section-forward-sibling
+    ;;  "K" 'magit-section-backward-sibling
+    ;;  "v" 'evil-magit/toggle
+    ;;  "zz" 'magit-section-toggle
+    ;;  "d" 'magit-discard
+    ;;  )
+  )
 ;; Utilities functions
 
 (defun my/tangle-init ()
