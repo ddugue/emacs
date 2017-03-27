@@ -66,6 +66,7 @@
     :ensure t
     :general
     (";" 'evil-commentary))
+
 (general-define-key
     :keymaps '(evil-normal-state-map evil-motion-state-map)
     "za" 'evil-close-folds
@@ -855,3 +856,18 @@ Return a list with the contents of the table cell."
   (insert (apply 'concat (reverse body-list)))
   (message (format "Wrote %d code blocks to init.el" (length body-list))))))
 
+(custom-set-variables
+ ;; custom-set-variables was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ '(evil-want-Y-yank-to-eol t)
+ '(package-selected-packages
+   (quote
+    (julia-mode web-mode evil-surround yasnippet yaml-mode which-key virtualenvwrapper use-package projectile org-plus-contrib org-bullets oneonone magit linum-relative key-chord ivy-hydra highlight-numbers helm general flycheck fill-column-indicator eww-lnum evil-commentary dired-ranger counsel company-jedi column-marker))))
+(custom-set-faces
+ ;; custom-set-faces was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ )

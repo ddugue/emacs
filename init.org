@@ -129,6 +129,7 @@ Easy auto-commenting functions
 ** Folding
 Folding of code structure, normally goes to za, we rebind it to zz
 #+BEGIN_SRC emacs-lisp
+
 (general-define-key
     :keymaps '(evil-normal-state-map evil-motion-state-map)
     "za" 'evil-close-folds
