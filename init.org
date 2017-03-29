@@ -38,6 +38,7 @@ a new package
 #+END_SRC
 ** Use-package
 Installation and configuration of the use-package macro
+
 [[https://github.com/jwiegley/use-package][Project homepage]]
 
 #+BEGIN_SRC emacs-lisp
@@ -89,6 +90,7 @@ unbind them first.
 #+END_SRC
 *** Evil commentary
 Evil commentary allows to comment lines for modes easily
+
 [[https://github.com/linktohack/evil-commentary][Project homepage]]
 
 #+BEGIN_SRC emacs-lisp
@@ -99,6 +101,7 @@ Evil commentary allows to comment lines for modes easily
 #+END_SRC
 *** Evil surround
 Allow to easily surround a text object with another text object
+
 [[https://github.com/timcharper/evil-surround][Project homepage]]
 
 #+BEGIN_SRC emacs-lisp
@@ -116,6 +119,7 @@ Allow to easily surround a text object with another text object
 ** General
 General is a replacement for traditional keybindings, for keychords
 AND for evil leader. Damn useful if you ask me.
+
 [[https://github.com/noctuid/general.el][Project homepage]]
 
 *** Installation
@@ -139,6 +143,7 @@ Install general if not already there
 #+END_SRC
 ** Keychord
 Keychord is a useful macro to bind two rapid keystroke to a command.
+
 [[https://www.emacswiki.org/emacs/KeyChord][Project homepage]]
 
 *** Installation
@@ -168,6 +173,7 @@ Enable key-chord globally so we can easily easily espace insert mode
 ** Hydra
 Hydra is used to create semi mode-state. It's mostly an utility. It is really useful
 when trying to define your own "state" as a custom VIM "state"
+
 [[https://github.com/abo-abo/hydra][Project homepage]]
 
 *** Installation
@@ -192,6 +198,7 @@ few bugs related to that
 ** Ivy
 Ivy is a generic completion framework. We can use it to search, files, buffers, select items from
 lists, etc...
+
 [[http://github.com/abo-abo/swiper][Project homepage]]
 
 *** Custom IVY hydra
@@ -581,6 +588,10 @@ We enable it globally.
 #+END_SRC
 
 * 5. Project management & git
+In this section everything related to a project management or git tools.
+Usually project get detected based on the root of the project which is where
+the .git file is. That is why both categories are mixed up.
+
 ** Projectile
 *** Installation
 Projectile is a project management tool so you can browse
@@ -677,7 +688,10 @@ Smerge is the mode to merge two files from git.
    "n"   'smerge-next
    "N"   'smerge-prev))
 #+END_SRC
-* 6. Errors
+* 6. Error & Compilation
+In this section, we have everything pertaining to syntax error highlighting and
+compilations in general
+
 ** Overrides some functions of flycheck for a smaller display
 #+BEGIN_SRC emacs-lisp
 (defun my/override-flycheck-fn ()
@@ -746,6 +760,9 @@ Function to toggle flycheck mode
 #+END_SRC
 
 * 7. Application & Tools
+In this section we can find the different applications and utility functions used
+by my emacs installation.
+
 ** Directory manager
 Configuration of dired
 TODO: Make better integration
@@ -1044,6 +1061,9 @@ Simple command to open this org file quickly
 
 #+END_SRC
 * 8. Programming languages & environment
+In this section we regrouped the different programming languages environment and
+their corresponding tools.
+
 ** Python
 *** Python mode
 TODO: Cleanup
