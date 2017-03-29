@@ -1,173 +1,201 @@
 #+STARTUP: overview
 #+TODO: TODO DISABLED | ENABLED
 #+PROPERTY: header-args:emacs-lisp :tangle yes
-* 1.Defaults
-Defaults and basic setup required for this configuration to work
-** Melpa
-First off we configure to enable melpa only as the archives
+* 1. Package management & installations
+Regroupment of the package manager
 
-#+BEGIN_SRC emacs-lisp :tangle yes
+#+BEGIN_SRC emacs-lisp
 ;; Initialize packages to install use-package
 (require 'package)
 (setq package-enable-at-startup nil)
+
+#+END_SRC
+** Melpa
+We add melpa to the package-archives
+
+#+BEGIN_SRC emacs-lisp
+
 (add-to-list 'package-archives
-             '("melpa" . "https://melpa.org/packages/")
+             '("melpa" . "https://melpa.org/packages/"))
+
+#+END_SRC
+** Org archives
+We also enable org as an archive source
+#+BEGIN_SRC emacs-lisp
+
+(add-to-list 'package-archives
              '("org" . "http://orgmode.org/elpa/"))
 
-(package-initialize)
+#+END_SRC
+** Initialize packages
+Uncomment package-refresh-contents for faster startup,
+but you will need to reactivate it every time you install
+a new package
 
+#+BEGIN_SRC emacs-lisp
+(package-initialize)
 ;; (package-refresh-contents)
 #+END_SRC
+** Use-package
+Installation and configuration of the use-package macro
+[[https://github.com/jwiegley/use-package][Project homepage]]
 
-** Use package
-We can then install use-package to enable lazy-loading of packages
-
-#+BEGIN_SRC emacs-lisp :tangle yes
+#+BEGIN_SRC emacs-lisp
 ;; Install use-package only if it's not there
 (unless (package-installed-p 'use-package)
    (package-refresh-contents)
    (package-install 'use-package))
 
 (setq use-package-verbose t) ;; Show loaded packages in *messages*
+
 #+END_SRC
 
-** Reload emacs
-** Change location of auto-saves
+* 2. Main extensions
+Core extensions required by multiple packages and to load on startup
+** Evil
+Evil brings emacs closer to VIM by providing vim-like bindings globally
+*** Installation of Evil
 #+BEGIN_SRC emacs-lisp
-;; Change default location of temporary files
-(setq backup-directory-alist
-          `((".*" . ,temporary-file-directory)))
-(setq auto-save-file-name-transforms
-          `((".*" ,temporary-file-directory t)))
-#+END_SRC
-** Change yes or no to y or n
-#+BEGIN_SRC emacs-lisp
-(fset 'yes-or-no-p 'y-or-n-p) ;; Yes or no questions become Y or n questions
-#+END_SRC
-** Server mode
-* 2.Editing
-In this section, we will find the basic packages required to make
-shortcuts work!
-** Evil installation
-In order to bring the editor closer to a VIM like clone,
-we must install the evil-mode and ensure it is globally installed
-
-#+BEGIN_SRC emacs-lisp :tangle yes
 ;; Install evil only if it's not there
 (unless (package-installed-p 'evil)
    (package-refresh-contents)
    (package-install 'evil))
+
+#+END_SRC
+*** Enabling evil globally
+Core module so we enable it globally
+
+#+BEGIN_SRC emacs-lisp
+;; Enable evil globally
 (require 'evil)
 (evil-mode 1)
+
+#+END_SRC
+*** Unsetting some evil default commands
+If we want to be able to use some nice vim overriding we need to
+unbind them first.
+#+BEGIN_SRC emacs-lisp
+;; Unsetting some default evil commands, that I
+;; plan to use
+(require 'evil)
+(evil-mode 1)
+
 (define-key evil-motion-state-map (kbd "SPC") nil)
 (define-key evil-motion-state-map "," nil)
 (define-key evil-motion-state-map "zz" nil)
 (define-key evil-motion-state-map "za" nil)
 (define-key evil-normal-state-map (kbd "g,") nil)
-(global-unset-key (kbd "C-SPC"))
-#+END_SRC
 
-** General installation
+#+END_SRC
+*** Evil commentary
+Evil commentary allows to comment lines for modes easily
+[[https://github.com/linktohack/evil-commentary][Project homepage]]
+
+#+BEGIN_SRC emacs-lisp
+(use-package evil-commentary
+    :ensure t
+    :commands (evil-commentary))
+
+#+END_SRC
+*** Evil surround
+Allow to easily surround a text object with another text object
+[[https://github.com/timcharper/evil-surround][Project homepage]]
+
+#+BEGIN_SRC emacs-lisp
+(use-package evil-surround
+  :ensure t
+  :init
+  (global-evil-surround-mode t))
+
+#+END_SRC
+*** Remap Y to y$ instead of yy
+#+BEGIN_SRC emacs-lisp
+(customize-set-variable 'evil-want-Y-yank-to-eol t)
+
+#+END_SRC
+** General
 General is a replacement for traditional keybindings, for keychords
 AND for evil leader. Damn useful if you ask me.
+[[https://github.com/noctuid/general.el][Project homepage]]
 
-#+BEGIN_SRC emacs-lisp :tangle yes
+*** Installation
+Install general if not already there
+#+BEGIN_SRC emacs-lisp
 ;; Install general only if it's not there
 (unless (package-installed-p 'general)
    (package-refresh-contents)
    (package-install 'general))
 (require 'general)
+
+#+END_SRC
+
+*** Configuration
+#+BEGIN_SRC emacs-lisp
 (setq general-default-keymaps 'evil-motion-state-map)
 (setq default-leader-key "SPC")
 (setq application-leader-key ",")
 (setq general-default-non-normal-prefix "C-SPC")
 
 #+END_SRC
+** Keychord
+Keychord is a useful macro to bind two rapid keystroke to a command.
+[[https://www.emacswiki.org/emacs/KeyChord][Project homepage]]
 
-** Keychord installation
-Keychord is used to map bindings to two rapid strokes
-#+BEGIN_SRC emacs-lisp :tangle yes
+*** Installation
+Install only if not already installed
+
+#+BEGIN_SRC emacs-lisp
 ;; Install keychord only if it's not there
 (unless (package-installed-p 'key-chord)
    (package-refresh-contents)
    (package-install 'key-chord))
 (require 'key-chord)
+
+#+END_SRC
+
+*** Configuration
+Enable key-chord globally so we can easily easily espace insert mode
+
+#+BEGIN_SRC emacs-lisp
 (setq key-chord-two-keys-delay 0.1) ;; default 0.1
 (setq key-chord-one-key-delay 0.2) ;; default 0.2
+
 (key-chord-mode 1)
 (key-chord-define evil-insert-state-map "jk" 'evil-normal-state)
 (key-chord-define evil-replace-state-map "jk" 'evil-normal-state)
-#+END_SRC
-** Hydra installation
-Hydra is used to create semi mode-state. It's mostly an util
 
-#+BEGIN_SRC emacs-lisp :tangle yes
+#+END_SRC
+** Hydra
+Hydra is used to create semi mode-state. It's mostly an utility. It is really useful
+when trying to define your own "state" as a custom VIM "state"
+[[https://github.com/abo-abo/hydra][Project homepage]]
+
+*** Installation
+#+BEGIN_SRC emacs-lisp
 ;; Install hydra only if it's not there
 (unless (package-installed-p 'hydra)
    (package-refresh-contents)
    (package-install 'hydra))
 (require 'hydra)
+#+END_SRC
+*** Disable hydra help
+There is normally an helper when entering an hydra. The problem is since we
+want to use a separate minibuffer, we need to disable it, as there is a
+few bugs related to that
+
+#+BEGIN_SRC emacs-lisp
 ;; Since we use the minibuffer in a separate frame. No help
 ;; for us
 (setq hydra-is-helpful nil)
 
 #+END_SRC
-** Movement keys
-*** TODO Bind J and K to scroll up
-*** Remap Y to y$ instead of yy
-#+BEGIN_SRC emacs-lisp
-(customize-set-variable 'evil-want-Y-yank-to-eol t)
-#+END_SRC
-** Commenting
-Easy auto-commenting functions
-#+BEGIN_SRC emacs-lisp
-(use-package evil-commentary
-    :ensure t
-    :general
-    (";" 'evil-commentary))
-#+END_SRC
-** Folding
-Folding of code structure, normally goes to za, we rebind it to zz
-#+BEGIN_SRC emacs-lisp
-
-(general-define-key
-    :keymaps '(evil-normal-state-map evil-motion-state-map)
-    "za" 'evil-close-folds
-    "zz" 'evil-toggle-fold)
-#+END_SRC
-** Trailing whitespace
-We will automatically remove trailing whitespace. Really good for Python
-
-#+BEGIN_SRC emacs-lisp
-;; Remove trailing whitespaces before save
-(add-hook 'before-save-hook 'delete-trailing-whitespace)
-#+END_SRC
-
-** Tabification
-Describes how tabification work. Normally we want tabs to equal 4 spaces
-and except on rare cases, tabs should be representend as spaces for
-MANY reasons. Check the flame ware online
-
-#+BEGIN_SRC emacs-lisp :tangle yes
-(setq-default tab-width 4)
-(setq-default indent-tabs-mode nil)
-#+END_SRC
-
-** Surrounding
-
-*** Installation of Evil-surround
-#+BEGIN_SRC emacs-lisp
-(use-package evil-surround
-  :ensure t
-  :init
-  (global-evil-surround-mode t))
-#+END_SRC
-** TODO i18n
-* 3.Completion framework
-** Utilities functions
 ** Ivy
-*** Ivy hydra
-Custom bindings for a custom hydra binding
+Ivy is a generic completion framework. We can use it to search, files, buffers, select items from
+lists, etc...
+[[http://github.com/abo-abo/swiper][Project homepage]]
+
+*** Custom IVY hydra
+Custom bindings for a custom hydra binding. It adds some functions to our IVY.
 #+BEGIN_SRC emacs-lisp
 (defun my/ivy-get-selection ()
     "Returns the selected ivy text"
@@ -194,14 +222,16 @@ Custom bindings for a custom hydra binding
     (if (member str (when reg (split-string reg "\n")))
      (concat "* " str)
      str)))
+
 #+END_SRC
-*** Ivy configuration
+*** Installtion & Configuration of Ivy
+We configure and install ivy, which is the Engine
 #+BEGIN_SRC emacs-lisp
 (use-package ivy
-    :ensure t
-    :diminish ivy-mode
-    :bind
-    (:map ivy-minibuffer-map
+  :ensure t
+  :diminish ivy-mode
+  :bind
+  (:map ivy-minibuffer-map
     ("C-S-J" . ivy-scroll-down-command)
     ("C-j" . ivy-next-line)
     ("C-S-K" . ivy-scroll-up-command)
@@ -209,19 +239,23 @@ Custom bindings for a custom hydra binding
     ("C-l" . ivy-alt-done)
     ("<C-return>" . ivy-immediate-done)
     ("C-h" . ivy-backward-kill-word))
-    :init
-    (progn
+  :init
+  (progn
+    ;; Set default regex matching
     (setq ivy-re-builders-alist
           '((ivy-switch-buffer . ivy--regex-fuzzy)
             (counsel-find-file . ivy--regex-fuzzy)
             (t . ivy--regex-plus)))
     (setq ivy-wrap t)
-    ;; (setq ivy-use-virtual-buffers t)
-    (setq ivy-extra-directories nil) ;; Remove ../ and ./ from files selection
-    (ivy-mode 1)
-    (setq ivy-height 25))
-    :config
-    (progn
+    ;; Remove ../ and ./ from files selection t)
+    (setq ivy-extra-directories nil)
+    (setq ivy-height 25)
+    ;; Enable globally
+    (ivy-mode 1))
+
+  :config
+  (progn
+    ;; Define a custom hydra
     (key-chord-define ivy-minibuffer-map "jk"
                       (defhydra hydra-ivy/body
                                 (:post (when
@@ -236,22 +270,17 @@ Custom bindings for a custom hydra binding
                                 ("y" my/ivy-append-yank "yank")
                                 ("m" my/ivy-mark "mark")
                                 ("Y" my/ivy-override-yank "override")
-                                ("i" nil "insert"))))
-)
+                                ("i" nil "insert")))))
+
 #+END_SRC
 
-Installation of Counsel
+*** Installation and configuration of Counsel
+We install and configure counsel, which uses ivy and provides some nice default funcions
 
 #+BEGIN_SRC emacs-lisp
 (use-package counsel
     :ensure t
-    :general
-    ("/" 'swiper)
-    (:prefix default-leader-key
-             "ff" 'counsel-find-file
-             "fl" 'locate-file
-             "hh" 'counsel-describe-function
-             "bb" 'ivy-switch-buffer)
+    :commands (counsel-find-file locate-file counsel-describe-function ivy-switch-buffer swiper)
     :bind
     (("C-x C-f" . counsel-find-file)
      ("C-x f"   . counsel-find-file))
@@ -268,10 +297,11 @@ Installation of Counsel
          "\\|\\(?:\\`.+?\\.pyc\\'\\)"
          ))))
 
-
 #+END_SRC
-
-** Company mode
+** Company
+*** Custom company frontend
+Since we want to display our company results in the minibuffer, we need to write
+a custome company frontend
 #+BEGIN_SRC emacs-lisp
 (defun get-candidates-function (str pred _)
 )
@@ -309,185 +339,48 @@ Installation of Counsel
     (hide (hide-ivy))))
 
 #+END_SRC
+*** Installation and configuration
+Company is a general CODE completion engine (IVY) is a general completion candidate.
+Ideally we would not need both.
+
 #+BEGIN_SRC emacs-lisp
 (use-package company
-    :ensure t
-    :commands (company-mode)
-    :bind (:map company-active-map
+  :ensure t
+  :commands (company-mode)
+  :bind
+  (:map company-active-map
     ("C-k" . company-select-previous)
     ("C-j" . company-select-next))
-    :config
-    (setq company-idle-delay .3)
-    (setq company-minimum-prefix-length 2)
-    (setq company-frontends
-          '(company-preview-frontend counsel-company-frontend))
-    (setq company-require-match 'never)
-)
-#+END_SRC
-** DISABLED HELM
-Installation of HELM
-
-#+BEGIN_SRC emacs-lisp
-;; Install helm only if it's not there
-(unless (package-installed-p 'helm)
-   (package-refresh-contents)
-   (package-install 'helm))
+  :config
+  (setq company-idle-delay .3)
+  (setq company-minimum-prefix-length 2)
+  (setq company-frontends
+        '(company-preview-frontend counsel-company-frontend))
+  (setq company-require-match 'never))
 
 #+END_SRC
-
-Basic configuration of HELM
-#+BEGIN_SRC emacs-lisp
-;; Helm basic configuration
-(require 'helm)
-(require 'helm-config)
-
-#+END_SRC
-
-*** DISABLED Helm alternate keymap
-Override some helm key maps to make them more intuitive
-
-#+BEGIN_SRC emacs-lisp
-;; We switch out C-z and tab to make a more intuitive interface
-(define-key helm-map (kbd "<tab>") 'helm-execute-persistent-action) ; rebind tab to run persistent action
-(define-key helm-map (kbd "C-i") 'helm-execute-persistent-action) ; make TAB work in terminal
-(define-key helm-map (kbd "C-z")  'helm-select-action) ; list actions using C-z
-
-#+END_SRC
-*** DISABLED Helm M-x
-Override the M-x command for the helm-command
-
-#+BEGIN_SRC emacs-lisp
-(global-set-key (kbd "M-x") #'helm-M-x)
-#+END_SRC
-
-*** DISABLED Helm Find files
-Override the find files command for the helm find file. We shall use helm-for-find files because it has more results
-#+BEGIN_SRC emacs-lisp
-(setq helm-ff-skip-boring-files t)
-(setq helm-candidate-number-limit 100)
-(global-set-key (kbd "C-x C-f") #'helm-for-files)
-(global-set-key (kbd "C-x f") #'helm-for-files) ;; I use the wrong shortcut > 50% of the time
-
-#+END_SRC
-
-*** DISABLED Enable helm
-#+BEGIN_SRC emacs-lisp
-(helm-mode 1) ;; Enabling helm
-#+END_SRC
-
-* 4.Help
-In this section everything, we can find everything linked to globally
-available help
-** Which-key
-This minor-mode allows us to list all the keybindings linked to a specific
-key prefix. Damn useful with evil and for auto discovery.
-
-#+BEGIN_SRC emacs-lisp :tangle yes
-;; Configuration of which-key
-(use-package which-key
-    :ensure t
-    :diminish which-key-mode
-    :config
-    (which-key-setup-minibuffer)
-    (which-key-mode 1)
-    (which-key-add-key-based-replacements
-         "SPC f" "files"
-         "SPC b" "buffers"
-         "SPC e" "errors"
-         "SPC t" "toggle"
-         "SPC v" "column-view-mode"
-         "SPC E" "editor/emacs"
-         "SPC w" "windows"
-         "SPC h" "help"
-         "SPC y" "yank"
-         "SPC p" "paste"
-         "SPC g" "project/git"
-         "SPC i" "insert"
-         "SPC RET" "shell"
-         "SPC TAB" "last buffer")
-)
-#+END_SRC
-** Help key bindings
-
-#+BEGIN_SRC emacs-lisp
-(general-define-key :prefix default-leader-key
-                    "hk" 'describe-key)
-
-#+END_SRC
-* 5.UI
-** Disable UI components
+* 3. Preferences
+Various preferences configurations
+** Visual preferences
+UI Enhancements and preferences
 *** Disable scrollbar
-#+BEGIN_SRC emacs-lisp :tangle yes
+#+BEGIN_SRC emacs-lisp
 (scroll-bar-mode -1)
 #+END_SRC
 *** Disable menubar
-#+BEGIN_SRC emacs-lisp :tangle yes
+#+BEGIN_SRC emacs-lisp
 (menu-bar-mode -1)
 #+END_SRC
 *** Disable toolbar
-#+BEGIN_SRC emacs-lisp :tangle yes
+#+BEGIN_SRC emacs-lisp
 (tool-bar-mode -1)
 #+END_SRC
-
-** Whitespace
+*** Disable splash screen
 #+BEGIN_SRC emacs-lisp
-(defun my/toggle-tab-mode ()
-  (interactive)
-(setq indent-tabs-mode (not indent-tabs-mode)))
-
-(use-package whitespace
-:general
-(:prefix default-leader-key
- "tw" 'whitespace-mode
- "ta" 'my/toggle-tab-mode)
-:config
-(setq whitespace-style '(space-mark tab-mark newline-mark))
-(setq whitespace-display-mappings
-        ;; all numbers are unicode codepoint in decimal. e.g. (insert-char 182 1)
-        '(
-          (space-mark 32 [183] [46]) ; SPACE 32 「 」, 183 MIDDLE DOT 「·」, 46 FULL STOP 「.」
-          (newline-mark 10 [182 10]) ; LINE FEED,
-          (tab-mark 9 [8594 9] [92 9]) ; tab
-          ))
-)
+(setq inhibit-startup-screen t)
 #+END_SRC
-** DISABLED Line wrapping
-We also want to wrap lines automatically
-Disabled because it makes some problems with some other modes.
-Need to investigate new lines in emacs
-
-#+BEGIN_SRC emacs-lisp :tangle yes
-;; Wrap lines automatically for all modes
-(global-visual-line-mode 1)
-(setq visual-line-fringe-indicators '(nil right-curly-arrow))
-#+END_SRC
-
-** Scrolling
-We want to ensure that emacs scrolls only one line at a time, else
-it will jump page
-#+BEGIN_SRC emacs-lisp :tangle yes
-(setq scroll-step 1)
-#+END_SRC
-
-** Powerline
-** Columns
-Basically with columns, we want two things:
-+ Show the column number in the power bar
-+ Highlight the 80th columns for nice wrapping
-
-#+BEGIN_SRC emacs-lisp :tangle yes
-(setq-default fill-column 80)
-(setq column-number-mode t)
-(use-package fill-column-indicator
-    :ensure t
-    :config
-    (setq fci-rule-width 3)
-    (setq fci-rule-color "#A16946")
-    (add-hook 'prog-mode-hook 'fci-mode)
-    )
-#+END_SRC
-** Line numbering
-*** Relative line numbering
+*** Line numbering
+**** Relative line numbering
 Linum relative allows us to see relative line numbers based on the current highlighted line
 Setting linum-relative-current-symbol to empty string ensures that the current line number is written
 
@@ -504,7 +397,7 @@ Setting linum-relative-current-symbol to empty string ensures that the current l
    (add-hook 'prog-mode-mode-hook 'linum-mode))
 
 #+END_SRC
-*** Highlight line
+**** Highlight line
 We also want to highlight the current line by default
 
 #+BEGIN_SRC emacs-lisp :tangle yes
@@ -512,100 +405,74 @@ We also want to highlight the current line by default
 (global-hl-line-mode 1)
 
 #+END_SRC
-
-** Disable splash screen
+*** Whitespace
+Configure white-space mode. White-space mode allows you to visualize space char (line feeds, tab, spaces)
 #+BEGIN_SRC emacs-lisp
-(setq inhibit-startup-screen t)
-#+END_SRC
-* 6.Editing files
-** Buffer management
-#+BEGIN_SRC emacs-lisp :tangle yes
-;; (set-frame-parameter nil 'unsplittable t)
-(defun my/matchframe (frame)
-  (when (equal "helm" (frame-parameter frame 'name)) frame))
-
-(add-to-list 'display-buffer-alist
-   '("^\\*[hH]elm.*$" .
-       ((display-buffer-reuse-window display-buffer-use-some-frame display-buffer-pop-up-frame)
-        . ((reusable-frames . t)
-          (frame-predicate . my/matchframe)
-          (pop-up-frame-parameters . ((name . "helm")
-                                      (minibuffer . nil)
-                                      (unsplittable . t)))))))
-#+END_SRC
-** Buffers management
-*** Kill all buffers
-#+BEGIN_SRC emacs-lisp
-(defun my/kill-other-buffers ()
-  "Kill all other buffers"
-  (interactive)
-  (mapc 'kill-buffer (delq (current-buffer) (buffer-list))))
-
-(general-define-key
-     :prefix default-leader-key
-             "bd" 'evil-delete-buffer
-             "bc" 'my/kill-other-buffers)
-#+END_SRC
-*** Switch to last buffer
-#+BEGIN_SRC emacs-lisp
-(defun spacemacs/alternate-buffer (&optional window)
-  "Switch back and forth between current and last buffer in the
-current window."
-  (interactive)
-  (let ((current-buffer (window-buffer window))
-        (buffer-predicate
-         (frame-parameter (window-frame window) 'buffer-predicate)))
-    ;; switch to first buffer previously shown in this window that matches
-    ;; frame-parameter `buffer-predicate'
-    (switch-to-buffer
-     (or (cl-find-if (lambda (buffer)
-                       (and (not (eq buffer current-buffer))
-                            (or (null buffer-predicate)
-                                (funcall buffer-predicate buffer))))
-                     (mapcar #'car (window-prev-buffers window)))
-         ;; `other-buffer' honors `buffer-predicate' so no need to filter
-         (other-buffer current-buffer t)))))
-
-(general-define-key :prefix default-leader-key
-                    "TAB" 'spacemacs/alternate-buffer)
+(use-package whitespace
+  :config
+  (setq whitespace-style '(space-mark tab-mark newline-mark))
+  (setq whitespace-display-mappings
+        '((space-mark 32 [183] [46]) ; SPACE 32 「 」, 183 MIDDLE DOT 「·」, 46 FULL STOP 「.」
+          (newline-mark 10 [182 10]) ; LINE FEED,
+          (tab-mark 9 [8594 9] [92 9]) ; tab
+          )))
 
 #+END_SRC
-** File management
-Allow to reopen current file as sudo
+*** Columns
+Basically with columns, we want two things:
++ Show the column number in the power bar
++ Highlight the 80th columns for nice wrapping
+
 #+BEGIN_SRC emacs-lisp
-;; from magnars
-(defun spacemacs/sudo-edit (&optional arg)
-  (interactive "p")
-  (let ((fname (if (or arg (not buffer-file-name))
-                   (read-file-name "File: ")
-                 buffer-file-name)))
-    (find-file
-     (cond ((string-match-p "^/ssh:" fname)
-            (with-temp-buffer
-              (insert fname)
-              (search-backward ":")
-              (let ((last-match-end nil)
-                    (last-ssh-hostname nil))
-                (while (string-match "@\\\([^:|]+\\\)" fname last-match-end)
-                  (setq last-ssh-hostname (or (match-string 1 fname)
-                                              last-ssh-hostname))
-                  (setq last-match-end (match-end 0)))
-                (insert (format "|sudo:%s" (or last-ssh-hostname "localhost"))))
-              (buffer-string)))
-           (t (concat "/sudo:root@localhost:" fname))))))
+(setq-default fill-column 80)
+(setq column-number-mode t)
+(use-package fill-column-indicator
+    :ensure t
+    :commands (fci-mode)
+    :config
+    (setq fci-rule-width 3)
+    (setq fci-rule-color "#A16946"))
+
 #+END_SRC
+*** Highlight number
+Mode to highlight numbers in the actual buffer
+
+[[https://github.com/Fanael/highlight-numbers][Project homepage]]
+
 #+BEGIN_SRC emacs-lisp
-(general-define-key :prefix default-leader-key
-                    "f!" 'spacemacs/sudo-edit
-                    "fs" 'save-buffer)
+;; Mode to highlight numbers
+(use-package highlight-numbers
+    :commands (highlight-numbers-mode)
+    :ensure t)
+
 #+END_SRC
-** Make helps and messages into separate frame
+*** Themes
+**** Change custom theme directory
+#+BEGIN_SRC emacs-lisp
+(setq custom-theme-directory "~/.emacs.d/themes")
+(setq custom-safe-themes t)
+#+END_SRC
+**** Load theme yesterday glow
+#+BEGIN_SRC emacs-lisp
+(load-theme 'yesterday-glow t)
+#+END_SRC
+** Window management preferences
+Preferences and configurations linked to window management
+*** Make minibuffer a separate frame
+#+BEGIN_SRC emacs-lisp
+;; Force initial frame to not have any minibuffer
+(setq initial-frame-alist '((name . "editor") (minibuffer . nil)))
+(add-to-list 'default-frame-alist '(minibuffer . nil))
+
+#+END_SRC
+*** Make helps and messages into separate frame
 This code ensures that the Help and Messages buffer are always shown on the same place
 
-#+BEGIN_SRC emacs-lisp :tangle yes
+#+BEGIN_SRC emacs-lisp
 (defun my/matchframe (frame)
   (when (equal "help" (frame-parameter frame 'name)) frame))
 ;; For help buffers
+;; TODO: Shorten fn
 (add-to-list 'display-buffer-alist
    '("^\\*[hH]elp.*$" .
        ((display-buffer-reuse-window display-buffer-use-some-frame display-buffer-pop-up-frame)
@@ -645,70 +512,172 @@ This code ensures that the Help and Messages buffer are always shown on the same
                                       (unsplittable . t)))))))
 
 #+END_SRC
-** Emacs windows management
-Some shortucts for window manipulations
+** Change location of auto-saves
+We wanna change the default location of temporary files to a temporary directory
 #+BEGIN_SRC emacs-lisp
-;; Windows manipulation
-(general-define-key :prefix default-leader-key
-                    "wd" 'delete-other-windows
-                    "wc" 'delete-other-windows
-                    "wa" 'make-frame-command)
+
+;; Change default location of temporary files
+(setq backup-directory-alist
+          `((".*" . ,temporary-file-directory)))
+(setq auto-save-file-name-transforms
+          `((".*" ,temporary-file-directory t)))
+#+END_SRC
+** Change yes or no to y or n
+#+BEGIN_SRC emacs-lisp
+(fset 'yes-or-no-p 'y-or-n-p) ;; Yes or no questions become Y or n questions
+#+END_SRC
+** Trailing whitespace
+Automatically remove trailing whitespace on save
+#+BEGIN_SRC emacs-lisp
+;; Remove trailing whitespaces before save
+(add-hook 'before-save-hook 'delete-trailing-whitespace)
 
 #+END_SRC
-** Make minibuffer a separate frame
+** Tabs
+Describes how tabification work. Normally we want tabs to equal 4 spaces
+and except on rare cases, tabs should be representend as spaces for
+MANY reasons. Check the flame ware online
+
 #+BEGIN_SRC emacs-lisp
-;; Force initial frame to not have any minibuffer
-(setq initial-frame-alist '((name . "editor") (minibuffer . nil)))
-(add-to-list 'default-frame-alist '(minibuffer . nil))
+(setq-default tab-width 4)
+(setq-default indent-tabs-mode nil)
 
 #+END_SRC
-** Bookmarking
+*** Tab mode
+Function to toggle tab-insertion mode instead of space-insertion
 #+BEGIN_SRC emacs-lisp
-(defun my/goto-default-mark ()
+(defun my/toggle-tab-mode ()
+  "Toggle visual tab and whitespace mode"
   (interactive)
-  (evil-goto-mark ?m))
-(general-define-key "`"
-  (general-key-dispatch 'evil-goto-mark
-    "`" 'my/goto-default-mark
-  ))
+  (setq indent-tabs-mode (not indent-tabs-mode)))
+
+
 #+END_SRC
-** Editor (emacs itself)
-*** Reload configs
-We first define a function to restart emacs cleanly
+** Scrolling
+We want to ensure that emacs scrolls only one line at a time, else
+it will jump page
 #+BEGIN_SRC emacs-lisp
-;; Function to reload editor
-(defun my/reload-emacs ()
-    "Reload emacs config"
-    (interactive)
-    (load-file "~/.emacs.d/init.el"))
+(setq scroll-step 1)
 
 #+END_SRC
-We can then define a shortcut. I like Er
+** TODO Server mode
+* 4. Help
+In this section everything, we can find everything linked to globally
+available help
+** Which-key
+This minor-mode allows us to list all the keybindings linked to a specific
+key prefix. Damn useful with evil and for auto discovery.
+
+We enable it globally.
+#+BEGIN_SRC emacs-lisp
+;; Configuration and installation of which-key
+(use-package which-key
+    :ensure t
+    :diminish which-key-mode
+    :config
+    (which-key-setup-minibuffer)
+    (which-key-mode 1))
+
+#+END_SRC
+
+* 5. Project management & git
+** Projectile
+*** Installation
+Projectile is a project management tool so you can browse
+project files for instance
 
 #+BEGIN_SRC emacs-lisp
-(general-define-key :prefix default-leader-key
-                    "Er" 'my/reload-emacs)
+;; Install projectile
+(use-package projectile
+  :ensure t
+  :commands (projectile-mode projectile-project-p))
 
 #+END_SRC
-*** Open config file
-Simple command to open this org file quickly
+*** Search ag on a project root
+Add a function to search with ag with the root of the search
+as the git repo root
 
 #+BEGIN_SRC emacs-lisp
-;; Function to open config
-(defun my/open-config ()
-    "Open emacs config"
-    (interactive)
-    (find-file "~/.emacs.d/init.org"))
+(defun my/git-ag (&optional initial-input)
+  "Search with ag on the git root if possible"
+  (interactive)
+  (counsel-ag initial-input
+    (when (projectile-project-p) (projectile-project-root))))
 
 #+END_SRC
-We can then define a shortcut. I like Er
-
+** Magit
+Magit is the package to manage git repo
+*** Installation
 #+BEGIN_SRC emacs-lisp
-(general-define-key :prefix default-leader-key
-                    "Ef" 'my/open-config)
+(defun evil-magit/toggle (&optional intent)
+  "Toggle the stage instead of moving it manually"
+  (interactive "P")
+  (pcase (magit-diff-type)
+    ('unstaged (magit-stage intent))
+    ('commited (magit-unstage))
+    ('untracked (magit-stage intent))
+    ('staged (magit-unstage))
+    ('undefined (user-error "Cannot toggle"))))
+
+(use-package magit
+  :ensure t
+  :commands (magit-status)
+  :general
+  (:states '(normal visual)
+   :keymaps 'magit-status-mode-map
+   "j" 'magit-section-forward
+   "k" 'magit-section-backward
+   "J" 'magit-section-forward-sibling
+   "K" 'magit-section-backward-sibling
+   "v" 'evil-magit/toggle
+   "zz" 'magit-section-toggle
+   "d" 'magit-discard
+   )
+  (:states '(normal visual)
+   :keymaps 'magit-status-mode-map
+   :prefix application-leader-key
+   "m"  'magit-merge
+   "c"  'magit-commit
+   "a"  'magit-commit-amend
+   "C"  'magit-commit-popup
+   "P"  'magit-push-popup
+   "pp" 'magit-push-current-to-upstream
+   "F"  'magit-pull-popup
+   "ff" 'magit-pull-from-upstream
+   "bb" 'magit-checkout
+   "bc" 'magit-branch-and-checkout
+   "B"  'magit-branch-popup
+   "r"  'magit-refresh
+   "i"  'magit-gitignore
+   )
+  (:keymaps 'with-editor-mode-map
+   "<C-return>" 'with-editor-finish)
+   :config
+   (evil-set-initial-state 'git-commit-mode 'normal)
+   (evil-set-initial-state 'magit-mode 'normal)
+   (evil-set-initial-state 'magit-status-mode 'normal)
+   (setq magit-commit-show-diff nil))
 
 #+END_SRC
-* 7.Error and compilations
+*** TODO Add column mode for git commit message
+** Smerge
+Smerge is the mode to merge two files from git.
+*** Configuration
+#+BEGIN_SRC emacs-lisp
+(use-package smerge-mode
+   :general
+  (:keymaps 'smerge-mode-map
+   :states '(normal visual)
+   :prefix application-leader-key
+   "RET" 'smerge-keep-current
+   "SPC" 'smerge-keep-other
+   "d"   'smerge-keep-base
+   "a"   'smerge-keep-all
+   "r"   'smerge-resolve
+   "n"   'smerge-next
+   "N"   'smerge-prev))
+#+END_SRC
+* 6. Errors
 ** Overrides some functions of flycheck for a smaller display
 #+BEGIN_SRC emacs-lisp
 (defun my/override-flycheck-fn ()
@@ -745,153 +714,41 @@ Return a list with the contents of the table cell."
                   (flycheck-error-list-make-cell
                    msg-and-checker nil msg-and-checker))))))
 #+END_SRC
-** Installs flycheck which is the best package (compared to flymake) for syntax checking
+** Installs & configure flycheck
+Flycheck is the best package (compared to flymake) for syntax checking.
 
 #+BEGIN_SRC emacs-lisp
+(use-package flycheck
+  :commands (flycheck-mode)
+  :ensure t
+  :init
+    (setq-default flycheck-disabled-checkers '(python-flake8))
+  :bind
+    (:map flycheck-error-list-mode-map
+             ("j" . flycheck-error-list-next-error)
+             ("k" . flycheck-error-list-previous-error))
+  :config
+    (my/override-flycheck-fn)
+    (setq flycheck-check-syntax-automatically '(save new-line idle-change))
+    (setq flycheck-display-errors-delay 30)
+  )
+
+#+END_SRC
+** Toggle Flycheck
+Function to toggle flycheck mode
+
+#+BEGIN_SRC emacs-lisp
+;; TODO: Make this a toggle
 (defun my/enable-flycheck ()
   (interactive)
   (flycheck-mode t)
   (flycheck-list-errors))
+#+END_SRC
 
-(use-package flycheck
-    :commands (flycheck-mode)
-    :ensure t
-    :init
-    (setq-default flycheck-disabled-checkers '(python-flake8))
-    :general
-    (:prefix default-leader-key
-             "ee" 'my/enable-flycheck
-             "tf" 'flycheck-mode)
-    :bind
-    (:map flycheck-error-list-mode-map
-             ("j" . flycheck-error-list-next-error)
-             ("k" . flycheck-error-list-previous-error))
-    :config
-    (my/override-flycheck-fn)
-    (setq flycheck-check-syntax-automatically '(save new-line idle-change))
-    (setq flycheck-display-errors-delay 30))
-
-#+END_SRC
-* 8.Themes
-** Highlight number
-#+BEGIN_SRC emacs-lisp
-(use-package highlight-numbers
-    :commands (highlight-numbers-mode)
-    :ensure t
-    :general
-    (:prefix default-leader-key
-             "tn" 'highlight-numbers-mode)
-)
-#+END_SRC
-** Change custom theme directory
-#+BEGIN_SRC emacs-lisp
-(setq custom-theme-directory "~/.emacs.d/themes")
-(setq custom-safe-themes t)
-#+END_SRC
-** Load theme yesterday glow
-#+BEGIN_SRC emacs-lisp
-(load-theme 'yesterday-glow t)
-#+END_SRC
-* 9.Project management
-** Projectile
-*** Installation
-#+BEGIN_SRC emacs-lisp
-(use-package projectile
-  :ensure t
-  :commands (projectile-mode projectile-project-p))
-
-(defun my/git-ag (&optional initial-input)
-  (interactive)
-  (counsel-ag initial-input
-    (when (projectile-project-p) (projectile-project-root)))
-  )
-
-(general-define-key
-:prefix default-leader-key
-"/" 'my/git-ag)
-#+END_SRC
-** Magit
-*** Installation
-#+BEGIN_SRC emacs-lisp
-(defun evil-magit/toggle (&optional intent)
-  (interactive "P")
-  (pcase (magit-diff-type)
-    ('unstaged (magit-stage intent))
-    ('commited (magit-unstage))
-    ('untracked (magit-stage intent))
-    ('staged (magit-unstage))
-    ('undefined (user-error "Cannot toggle"))))
-
-(use-package magit
-  :ensure t
-  :general
-  (:prefix default-leader-key
-   "gg" 'magit-status)
-  (:states '(normal visual)
-   :keymaps 'magit-status-mode-map
-   "j" 'magit-section-forward
-   "k" 'magit-section-backward
-   "J" 'magit-section-forward-sibling
-   "K" 'magit-section-backward-sibling
-   "v" 'evil-magit/toggle
-   "zz" 'magit-section-toggle
-   "d" 'magit-discard
-   )
-  (:states '(normal visual)
-   :keymaps 'magit-status-mode-map
-   :prefix application-leader-key
-   "m"  'magit-merge
-   "c"  'magit-commit
-   "a"  'magit-commit-amend
-   "C"  'magit-commit-popup
-   "P"  'magit-push-popup
-   "pp" 'magit-push-current-to-upstream
-   "F"  'magit-pull-popup
-   "ff" 'magit-pull-from-upstream
-   "bb" 'magit-checkout
-   "bc" 'magit-branch-and-checkout
-   "B"  'magit-branch-popup
-   "r"  'magit-refresh
-   "i"  'magit-gitignore
-   )
-  (:keymaps 'with-editor-mode-map
-   "<C-return>" 'with-editor-finish)
-   :config
-   (evil-set-initial-state 'git-commit-mode 'normal)
-   (evil-set-initial-state 'magit-mode 'normal)
-   (evil-set-initial-state 'magit-status-mode 'normal)
-   (setq magit-commit-show-diff nil)
-)
-#+END_SRC
-*** TODO Add column mode for git commit message
-** Smerge
-*** Configuration
-#+BEGIN_SRC emacs-lisp
-(use-package smerge-mode
-   :general
-  (:keymaps 'smerge-mode-map
-   :prefix application-leader-key
-   "RET" 'smerge-keep-current
-   "SPC" 'smerge-keep-other
-   "d"   'smerge-keep-base
-   "a"   'smerge-keep-all
-   "r"   'smerge-resolve
-   "n"   'smerge-next
-   "N"   'smerge-prev))
-(general-define-key
-   :states '(normal visual)
-   :keymaps 'smerge-mode-map
-   :prefix application-leader-key
-   "RET" 'smerge-keep-current
-   "SPC" 'smerge-keep-other
-   "d"   'smerge-kill-current
-   "r"   'smerge-resolve
-   "n"   'smerge-next
-   "N"   'smerge-prev)
-#+END_SRC
-* 10.Applications & Tools
+* 7. Application & Tools
 ** Directory manager
 Configuration of dired
+TODO: Make better integration
 #+BEGIN_SRC emacs-lisp
     (defun my/touch-file (filename)
       "Create a file into the current directory"
@@ -973,14 +830,23 @@ Configuration of dired
 #+END_SRC
 ** TODO Email
 ** TODO IRC
-** TODO Ledger
+** Ledger
+mode to edit ledger files
+#+BEGIN_SRC emacs-lisp
+(use-package ledger-mode
+  :mode ("\\.dat\\'" . ledger-mode)
+  :ensure t)
+#+END_SRC
 ** Org-mode
 *** Org indent mode
+We ensure org is nicely indented
+
 #+BEGIN_SRC emacs-lisp
 (setq org-hide-leading-stars t) ;; Ensure that we hide the number of stars before the first one
 (setq org-startup-indented t) ;; Ensure we indent all the content
 #+END_SRC
 *** Org bullets
+We install org bullets to replace the default bullets of Org-mode
 #+BEGIN_SRC emacs-lisp
 (use-package org
     :config
@@ -991,7 +857,7 @@ Configuration of dired
 )
 #+END_SRC
 *** Org babel
-
+We setup some variable for org babel (literate programming)
 #+BEGIN_SRC emacs-lisp
 ;; Ensure syntax of the language is used inside source blocks
 (setq org-src-fontify-natively t)
@@ -1000,22 +866,20 @@ Configuration of dired
 (setq org-src-tab-acts-natively t)
 #+END_SRC
 *** Org mode
+We configrure org mode
 #+BEGIN_SRC emacs-lisp
 (use-package org
    :general
    (:state '(insert normal visual)
     :keymaps 'org-mode-map
     "M-h" 'org-metaleft
-    "M-l" 'org-metaright
-    "H"   'org-shiftleft
-    "L"   'org-shiftright)
-   :config
-   ())
+    "M-l" 'org-metaright))
 #+END_SRC
 ** Shell
 *** Ansi-term
 #+BEGIN_SRC emacs-lisp
 (defun my/shell-open ()
+  "Open a shell in root of project"
   (interactive)
    (let ((project-root (if (projectile-project-p) (projectile-project-root) "~")))
          (progn
@@ -1027,20 +891,15 @@ Configuration of dired
            (term-send-input)
            (end-of-buffer)
            (insert "clear")
-           (term-send-input)
-)
-
-))
-
+           (term-send-input))))
 #+END_SRC
 #+BEGIN_SRC emacs-lisp
+;; Make ansi-term lazy-load
 (use-package ansi-term
-    :general
-    (:prefix default-leader-key
-             "RET" 'my/shell-open)
-)
+    :commands (ansi-term))
 #+END_SRC
 *** Automatic frame management
+Ensures that the ansi-terminal spawns in a new frame
 #+BEGIN_SRC emacs-lisp
 
 ;; For help buffers
@@ -1056,16 +915,13 @@ Configuration of dired
 )
 #+END_SRC
 ** EWW (Web browsing)
-
+Installs and configures EWW for web browsing
 #+BEGIN_SRC emacs-lisp
 (use-package eww-lnum
-  :ensure t
-  )
+  :ensure t)
 
 (use-package eww
   :general
-  (:prefix default-leader-key
-           "aw" 'eww)
   (:keymaps 'eww-mode-map
    :prefix application-leader-key
            "r" 'eww-reload
@@ -1085,14 +941,112 @@ Configuration of dired
    "K" 'evil-scroll-up
   )
   :config
-  (setq eww-search-prefix "https://www.google.com/search?q=")
-)
+  (setq eww-search-prefix "https://www.google.com/search?q="))
 
 #+END_SRC
-* 11.Programming languages
+** Files
+Functions and tools to deal with files
+*** Sudo open
+Allow to reopen current file as sudo via TRAMP
+#+BEGIN_SRC emacs-lisp
+;; from magnars
+(defun spacemacs/sudo-edit (&optional arg)
+  "Open file in sudo mode"
+  (interactive "p")
+  (let ((fname (if (or arg (not buffer-file-name))
+                   (read-file-name "File: ")
+                 buffer-file-name)))
+    (find-file
+     (cond ((string-match-p "^/ssh:" fname)
+            (with-temp-buffer
+              (insert fname)
+              (search-backward ":")
+              (let ((last-match-end nil)
+                    (last-ssh-hostname nil))
+                (while (string-match "@\\\([^:|]+\\\)" fname last-match-end)
+                  (setq last-ssh-hostname (or (match-string 1 fname)
+                                              last-ssh-hostname))
+                  (setq last-match-end (match-end 0)))
+                (insert (format "|sudo:%s" (or last-ssh-hostname "localhost"))))
+              (buffer-string)))
+           (t (concat "/sudo:root@localhost:" fname))))))
+
+#+END_SRC
+** Bookmarking
+Functions and tools to deal with emacs bookmarking
+*** Default bookmark
+Adds a function to go to a default bookmark (m) in this case
+
+#+BEGIN_SRC emacs-lisp
+(defun my/goto-default-mark ()
+  "Go to the bookmark 'm'"
+  (interactive)
+  (evil-goto-mark ?m))
+
+#+END_SRC
+** Buffers
+Functions and tools for buffer management
+
+*** Kill all buffers
+Elisp function to kill all other opened buffers
+
+#+BEGIN_SRC emacs-lisp
+(defun my/kill-other-buffers ()
+  "Kill all other buffers"
+  (interactive)
+  (mapc 'kill-buffer (delq (current-buffer) (buffer-list))))
+
+#+END_SRC
+*** Switch to last buffer
+Easy switch to last opened buffer
+
+#+BEGIN_SRC emacs-lisp
+(defun spacemacs/alternate-buffer (&optional window)
+  "Switch back and forth between current and last buffer in the
+current window."
+  (interactive)
+  (let ((current-buffer (window-buffer window))
+        (buffer-predicate
+         (frame-parameter (window-frame window) 'buffer-predicate)))
+    ;; switch to first buffer previously shown in this window that matches
+    ;; frame-parameter `buffer-predicate'
+    (switch-to-buffer
+     (or (cl-find-if (lambda (buffer)
+                       (and (not (eq buffer current-buffer))
+                            (or (null buffer-predicate)
+                                (funcall buffer-predicate buffer))))
+                     (mapcar #'car (window-prev-buffers window)))
+         ;; `other-buffer' honors `buffer-predicate' so no need to filter
+         (other-buffer current-buffer t)))))
+
+#+END_SRC
+** Emacs itself
+Tools and functions to work with emacs itself (so meta)
+*** Reload configs
+We first define a function to restart emacs cleanly
+#+BEGIN_SRC emacs-lisp
+;; Function to reload editor
+(defun my/reload-emacs ()
+    "Reload emacs config"
+    (interactive)
+    (load-file "~/.emacs.d/init.el"))
+
+#+END_SRC
+*** Open config file
+Simple command to open this org file quickly
+
+#+BEGIN_SRC emacs-lisp
+;; Function to open this config file
+(defun my/open-config ()
+    "Open emacs config"
+    (interactive)
+    (find-file "~/.emacs.d/init.org"))
+
+#+END_SRC
+* 8. Programming languages & environment
 ** Python
 *** Python mode
-
+TODO: Cleanup
 #+BEGIN_SRC emacs-lisp
 (defun my/set-venv ()
   (interactive)
@@ -1147,9 +1101,11 @@ Configuration of dired
 #+END_SRC
 ** Html
 *** Web mode
+Sets up web mode for html and django editing
 #+BEGIN_SRC emacs-lisp
 (use-package web-mode
   :mode ("\\.html?\\'" . web-mode)
+  :ensure t
   :config
   (setq web-mode-markup-indent-offset 2)
   (setq web-mode-enable-current-column-highlight t)
@@ -1160,79 +1116,158 @@ Configuration of dired
    :states '(normal)
    "zz" 'web-mode-fold-or-unfold)
   (:keymaps 'web-mode-map
+   :states '(normal)
    :prefix application-leader-key
-   "=" 'web-mode-buffer-indent)
-  :ensure t)
+   "=" 'web-mode-buffer-indent))
 #+END_SRC
 ** TODO Javascript
 ** TODO CSS
 ** TODO JSON
 ** INI files
 *** Autoload for .pylintrc
+Adds .pylintrc as a conf-mode file
 
 #+BEGIN_SRC emacs-lisp
 (use-package conf-mode
   :mode "\\.pylintrc\\'")
 #+END_SRC
-** TODO XML
 ** JULIA
+Configures and installs julia-mode for julia (.jl) file editing
 #+BEGIN_SRC emacs-lisp
 (use-package julia-mode
   :mode ("\\.jl\\'" . julia-mode)
   :ensure t)
 
 #+END_SRC
-** LISP
-*** Help
+** YAMl
+Configures and installs yaml-mode for yaml files (.yml) file editing
+We also manually set some theme options, since this mode is kinda broken
 #+BEGIN_SRC emacs-lisp
-(general-define-key :prefix default-leader-key
-                    "hf" 'counsel-describe-function
-                    "hv" 'counsel-describe-variable)
+(use-package yaml-mode
+  :ensure t
+  :mode ("\\.yml\\'" . yaml-mode)
+  :config
+  (add-hook 'yaml-mode-hook
+    (lambda ()
+      (progn (highlight-numbers-mode)
+      (face-remap-add-relative 'font-lock-variable-name-face '(:foreground "#E7C547"))
+      (face-remap-add-relative 'default '(:foreground "#FF8100"))))))
+#+END_SRC
+* A. Global keyboard mapping
+Annex to regroup all keyboard mappings
+
+For quick reference, every global keyboard mappings should be defined here
+** Prefixes
+Setting up prefixes for the different define keys
+
+#+BEGIN_SRC emacs-lisp
+(global-unset-key (kbd "C-SPC"))
+#+END_SRC
+** Leader keys
+Every key under the leader key should be defined here
+#+BEGIN_SRC emacs-lisp
+
+;; leader key prefix shortcuts
+(general-define-key
+  :prefix default-leader-key
+  ;; Help
+  "h"  '(:ignore t :which-key "Help")
+  "hf" 'counsel-describe-function
+  "hv" 'counsel-describe-variable
+  "hh" 'counsel-describe-function
+  "hk" 'describe-key
+
+  ;; Project
+  "g"  '(:ignore t :which-key "Projects")
+  "gg" 'magit-status
+  "/"  'my/git-ag
+
+  ;; Buffers
+  "b"  '(:ignore t :which-key "Buffers")
+  "bb" 'ivy-switch-buffer
+  "bd" 'evil-delete-buffer
+  "bc" 'my/kill-other-buffers
+  "TAB" 'spacemacs/alternate-buffer
+
+  ;; Files
+  "f"  '(:ignore t :which-key "Files")
+  "ff" 'counsel-find-file
+  "fl" 'locate-file
+  "f!" 'spacemacs/sudo-edit
+  "fs" 'save-buffer
+
+  ;; Editor
+  "E"  '(:ignore t :which-key "Editor")
+  "Er" 'my/reload-emacs
+  "Ef" 'my/open-config
+
+  ;; Windows
+  "w"  '(:ignore t :which-key "Windows")
+  "wd" 'delete-other-windows
+  "wc" 'delete-other-windows
+  "wa" 'make-frame-command
+
+  ;; Error management
+  "e"  '(:ignore t :which-key "Errors")
+  "ee" 'my/enable-flycheck
+
+  ;; Toggles
+  "t"  '(:ignore t :which-key "Toggles")
+  "tn" 'highlight-numbers-mode
+  "te" 'flycheck-mode
+  "tw" 'whitespace-mode
+  "ta" 'my/toggle-tab-mode
+
+  ;; Applications
+  "RET" 'my/shell-open
+  "a"  '(:ignore t :which-key "Applications")
+  "aw" 'eww
+)
+
 
 #+END_SRC
-** YAMl
+** Global keys
+
 #+BEGIN_SRC emacs-lisp
-  (use-package yaml-mode
-    :ensure t
-    :mode ("\\.yml\\'" . yaml-mode)
-    :config
-    (add-hook 'yaml-mode-hook
-      (lambda ()
-        (progn (highlight-numbers-mode)
-        (face-remap-add-relative 'font-lock-variable-name-face '(:foreground "#E7C547"))
-        (face-remap-add-relative 'default '(:foreground "#FF8100")))))
-    ;; :general
-    ;; (:prefix default-leader-key
-    ;;  "gg" 'magit-status)
-    ;; (:states '(normal visual)
-    ;;  :keymaps 'magit-status-mode-map
-    ;;  "j" 'magit-section-forward
-    ;;  "k" 'magit-section-backward
-    ;;  "J" 'magit-section-forward-sibling
-    ;;  "K" 'magit-section-backward-sibling
-    ;;  "v" 'evil-magit/toggle
-    ;;  "zz" 'magit-section-toggle
-    ;;  "d" 'magit-discard
-    ;;  )
-  )
+(general-define-key
+  ";" 'evil-commentary
+  "/" 'swiper)
+
+(general-define-key "`"
+  (general-key-dispatch 'evil-goto-mark
+    "`" 'my/goto-default-mark
+  ))
+
+(general-define-key
+  :keymaps '(evil-normal-state-map evil-motion-state-map)
+  ;; Folding
+  "za" 'evil-close-folds
+  "zz" 'evil-toggle-fold)
+
 #+END_SRC
-* A.Elisp Utilities
+* B. General hooks
+Annex to regroup all automatic hooks that affect multiple modes
+** Prog-mode hook
+#+BEGIN_SRC emacs-lisp
+(add-hook 'prog-mode-hook 'fci-mode)
+#+END_SRC
+* C. Elisp utilities
 This function is called by the save hook on init.org to trigger automatically a tangling
 
 #+BEGIN_SRC emacs-lisp
 ;; Utilities functions
 
 (defun my/tangle-init ()
-"Tangle an init file while ignoring DISABLED headers and :tangle nil"
-(let ((body-list ()) (output-file "~/.emacs.d/init.el"))
-  (org-babel-map-src-blocks "~/.emacs.d/init.org"
-    (add-to-list 'body-list (unless (string= (org-get-todo-state) "DISABLED") body)))
-  (with-temp-file output-file
-  (insert (apply 'concat (reverse body-list)))
-  (message (format "Wrote %d code blocks to init.el" (length body-list))))))
+  "Tangle an init file while ignoring DISABLED headers and :tangle nil"
+  (let ((body-list ()) (output-file "~/.emacs.d/init.el"))
+    (org-babel-map-src-blocks "~/.emacs.d/init.org"
+      (add-to-list 'body-list (unless (string= (org-get-todo-state) "DISABLED") body)))
+    (with-temp-file output-file
+    (insert (apply 'concat (reverse body-list)))
+    (message (format "Wrote %d code blocks to init.el" (length body-list))))))
 
 #+END_SRC
-* Conclusion
+* D. Tangle this file
 This small bits of code allow to execute some code
 on every save of this file to automatically update init.el!
 
