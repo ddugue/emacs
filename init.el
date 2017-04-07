@@ -450,7 +450,7 @@ Return a list with the contents of the table cell."
   :commands (flycheck-mode)
   :ensure t
   :init
-    (setq-default flycheck-disabled-checkers '(python-flake8))
+    (setq-default flycheck-disabled-checkers '(python-flake8 javascript-jshint))
   :bind
     (:map flycheck-error-list-mode-map
              ("j" . flycheck-error-list-next-error)
@@ -749,6 +749,34 @@ current window."
    :states '(normal)
    :prefix application-leader-key
    "=" 'web-mode-buffer-indent))
+(use-package js2-mode
+  :ensure t
+  :mode ("\\.jsx?\\'" . js2-mode)
+  :config
+  (add-to-list 'company-backends 'company-tern)
+
+  (setq js2-mode-show-parse-errors nil)
+  (setq js2-mode-show-strict-warnings nil)
+  (setq js2-basic-offset 2)
+  (add-hook 'js2-mode-hook
+    (lambda ()
+      (progn
+         (set (make-local-variable 'company-backends) '(company-tern))
+         (company-mode t)
+         (flycheck-mode t)
+         (highlight-numbers-mode t)
+         ))))
+
+(use-package tern
+  :ensure t
+  :commands (tern-mode)
+)
+
+(use-package company-tern
+  :ensure t
+  :commands (company-tern)
+)
+
 (use-package conf-mode
   :mode "\\.pylintrc\\'")
 (use-package julia-mode
@@ -764,6 +792,9 @@ current window."
       (progn (highlight-numbers-mode)
       (face-remap-add-relative 'font-lock-variable-name-face '(:foreground "#E7C547"))
       (face-remap-add-relative 'default '(:foreground "#FF8100"))))))
+(use-package haskell-mode
+  :ensure t
+  :mode ("\\.hs\\'" . haskell-mode))
 (global-unset-key (kbd "C-SPC"))
 
 ;; leader key prefix shortcuts

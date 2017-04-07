@@ -736,7 +736,7 @@ Flycheck is the best package (compared to flymake) for syntax checking.
   :commands (flycheck-mode)
   :ensure t
   :init
-    (setq-default flycheck-disabled-checkers '(python-flake8))
+    (setq-default flycheck-disabled-checkers '(python-flake8 javascript-jshint))
   :bind
     (:map flycheck-error-list-mode-map
              ("j" . flycheck-error-list-next-error)
@@ -1140,7 +1140,44 @@ Sets up web mode for html and django editing
    :prefix application-leader-key
    "=" 'web-mode-buffer-indent))
 #+END_SRC
-** TODO Javascript
+** Javascript
+*** JS2-Mode
+#+BEGIN_SRC emacs-lisp
+(use-package js2-mode
+  :ensure t
+  :mode ("\\.jsx?\\'" . js2-mode)
+  :config
+  (add-to-list 'company-backends 'company-tern)
+
+  (setq js2-mode-show-parse-errors nil)
+  (setq js2-mode-show-strict-warnings nil)
+  (setq js2-basic-offset 2)
+  (add-hook 'js2-mode-hook
+    (lambda ()
+      (progn
+         (set (make-local-variable 'company-backends) '(company-tern))
+         (company-mode t)
+         (flycheck-mode t)
+         (highlight-numbers-mode t)
+         ))))
+
+#+END_SRC
+*** Tern
+#+BEGIN_SRC emacs-lisp
+(use-package tern
+  :ensure t
+  :commands (tern-mode)
+)
+
+#+END_SRC
+*** Company-Tern
+#+BEGIN_SRC emacs-lisp
+(use-package company-tern
+  :ensure t
+  :commands (company-tern)
+)
+
+#+END_SRC
 ** TODO CSS
 ** TODO JSON
 ** INI files
@@ -1172,6 +1209,14 @@ We also manually set some theme options, since this mode is kinda broken
       (progn (highlight-numbers-mode)
       (face-remap-add-relative 'font-lock-variable-name-face '(:foreground "#E7C547"))
       (face-remap-add-relative 'default '(:foreground "#FF8100"))))))
+#+END_SRC
+** haskell
+haskell is a pure functional programming language. You can read more on [[https://en.wikipedia.org/wiki/Haskell_(programming_language)][haskell]]
+*** haskell-mode
+#+BEGIN_SRC emacs-lisp
+(use-package haskell-mode
+  :ensure t
+  :mode ("\\.hs\\'" . haskell-mode))
 #+END_SRC
 * A. Global keyboard mapping
 Annex to regroup all keyboard mappings
