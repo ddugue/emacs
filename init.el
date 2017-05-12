@@ -450,7 +450,7 @@ Return a list with the contents of the table cell."
   :commands (flycheck-mode)
   :ensure t
   :init
-    (setq-default flycheck-disabled-checkers '(python-flake8))
+    (setq-default flycheck-disabled-checkers '(python-flake8 javascript-jshint))
   :bind
     (:map flycheck-error-list-mode-map
              ("j" . flycheck-error-list-next-error)
@@ -501,6 +501,12 @@ Return a list with the contents of the table cell."
       (wdired-change-to-wdired-mode)
       (evil-normal-state)
       (evil-delete))
+
+    (defun my/dired-do-delete ()
+      (interactive)
+      (dired-do-delete)
+      (revert-buffer))
+
     (defun my/setup-dired (fun &rest args)
        (message "Dired started")
        (let ((res (apply fun args)))
@@ -523,9 +529,7 @@ Return a list with the contents of the table cell."
        :keymaps 'wdired-mode-map
        "<C-return>" 'my/wdired-commit
        "<return>" 'dired-find-file
-       "m" 'my/dired-toggle-mark
-       "dd" 'dired-do-delete
-       "zz" 'dired-maybe-insert-subdir
+       "dd" 'my/dired-do-delete
       )
       (:states '(normal visual)
        :keymaps '(dired-mode-map wdired-mode-map)
@@ -533,9 +537,11 @@ Return a list with the contents of the table cell."
        "!"  'dired-do-shell-command
        "i"  'dired-create-directory
        "a"  'my/touch-file
+       "zz" 'dired-maybe-insert-subdir
        "y" 'dired-ranger-copy
        "p" 'dired-ranger-paste
        "m" 'dired-ranger-move
+       "m" 'my/dired-toggle-mark
        "%" 'dired-mark-files-regexp)
       :config
       (add-hook 'dired-after-readin-hook
@@ -734,13 +740,28 @@ current window."
          ))))
 
 (use-package web-mode
-  :mode ("\\.html?\\'" . web-mode)
+  :mode (("\\.html?\\'" . web-mode)
+         ("\\.jsx\\'"   . web-mode))
   :ensure t
   :config
+  (setq web-mode-content-types-alist
+    '(("jsx" . "\\.js[x]?\\'")))
   (setq web-mode-markup-indent-offset 2)
+  (setq web-mode-code-indent-offset 2)
   (setq web-mode-enable-current-column-highlight t)
-  (setq web-mode-engines-alist '(("django" . "\\.html\\'")))
+  (setq web-mode-engines-alist
+    '(("django" . "\\.html\\'")))
   (add-hook 'web-mode-hook 'turn-off-fci-mode)
+  (add-hook 'web-mode-hook
+    (lambda ()
+      (if (equal web-mode-content-type "jsx") (progn
+         (flycheck-add-mode 'javascript-eslint 'web-mode)
+         (message "JSX loaded")
+         (set (make-local-variable 'company-backends) '(company-tern))
+         (company-mode t)
+         (flycheck-mode t)
+         (highlight-numbers-mode t)
+         ))))
   :general
   (:keymaps 'web-mode-map
    :states '(normal)
@@ -749,8 +770,39 @@ current window."
    :states '(normal)
    :prefix application-leader-key
    "=" 'web-mode-buffer-indent))
+(use-package js2-mode
+  :ensure t
+  :mode ("\\.js\\'" . js2-mode)
+  :config
+  (add-to-list 'company-backends 'company-tern)
+
+  (setq js2-mode-show-parse-errors nil)
+  (setq js2-mode-show-strict-warnings nil)
+  (setq js2-basic-offset 2)
+  (add-hook 'js2-mode-hook
+    (lambda ()
+      (progn
+         (set (make-local-variable 'company-backends) '(company-tern))
+         (company-mode t)
+         (flycheck-mode t)
+         (highlight-numbers-mode t)
+         ))))
+
+(use-package tern
+  :ensure t
+  :commands (tern-mode)
+)
+
+(use-package company-tern
+  :ensure t
+  :commands (company-tern)
+)
+
 (use-package conf-mode
   :mode "\\.pylintrc\\'")
+(use-package android-mode
+  :ensure t
+  :commands (android-mode))
 (use-package julia-mode
   :mode ("\\.jl\\'" . julia-mode)
   :ensure t)
@@ -764,6 +816,9 @@ current window."
       (progn (highlight-numbers-mode)
       (face-remap-add-relative 'font-lock-variable-name-face '(:foreground "#E7C547"))
       (face-remap-add-relative 'default '(:foreground "#FF8100"))))))
+(use-package haskell-mode
+  :ensure t
+  :mode ("\\.hs\\'" . haskell-mode))
 (global-unset-key (kbd "C-SPC"))
 
 ;; leader key prefix shortcuts
@@ -786,6 +841,7 @@ current window."
   "bb" 'ivy-switch-buffer
   "bd" 'evil-delete-buffer
   "bc" 'my/kill-other-buffers
+  "br" 'revert-buffer
   "TAB" 'spacemacs/alternate-buffer
 
   ;; Files
@@ -816,11 +872,16 @@ current window."
   "te" 'flycheck-mode
   "tw" 'whitespace-mode
   "ta" 'my/toggle-tab-mode
+  "tA" 'android-mode
 
   ;; Applications
   "RET" 'my/shell-open
   "a"  '(:ignore t :which-key "Applications")
   "aw" 'eww
+
+  ;; Inserts
+  "i" '(:ignore t :which-key "Inserts")
+  "ic" 'insert-char
 )
 
 
