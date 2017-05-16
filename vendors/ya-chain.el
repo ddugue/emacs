@@ -1,5 +1,3 @@
-;; This buffer is for text that is not saved, and for Lisp evaluation.
-;; To create a file, visit it with <open> and enter text in its buffer.
 
 ;; (package-refresh-contents)
 ;; (package-install 'yasnippet)
@@ -163,122 +161,247 @@ ${20:$(downcase yas-test)}. ${  das}")
 (cl-assert (equal (chain-append "$1 and $0;" "if $1") "$1 and $2;/nif $3"))
 
 ;; Parsing functions
+(setq chain-token-operators '(">" "," "*" "+" "_" ","))
+(setq chain-token-precedences
+      '(("+" . 3) (">" . 4) ("*" . 5) ("_" . 2) ("," . 1) ("(" . 0)))
+
+(defun chain-token-operatorp (operator)
+  "Return truthy if token is an operator"
+  (-contains-p chain-token-operators operator))
+(cl-assert (equal (chain-token-operatorp ">") t))
+(cl-assert (equal (chain-token-operatorp "<") nil))
+
+(defun chain-token-parenthesisp (parenthesis)
+  "Return truthy if token is a parenthesis"
+  (or (equal parenthesis ")") (equal parenthesis "(")))
+(cl-assert (equal (chain-token-parenthesisp "(") t))
+(cl-assert (equal (chain-token-parenthesisp 2) nil))
+
+(defun chain-token-symbolp (symbol)
+  "Return truthy if token is a symbol"
+  (unless (equal symbol nil)
+    (unless (chain-token-operatorp symbol)
+      (unless (chain-token-parenthesisp symbol)
+        (when (equal (string-to-number symbol) 0) t)))))
+
+(cl-assert (equal (chain-token-symbolp ">") nil))
+(cl-assert (equal (chain-token-symbolp ")") nil))
+(cl-assert (equal (chain-token-symbolp "2") nil))
+(cl-assert (equal (chain-token-symbolp "david") t))
+(cl-assert (equal (chain-token-symbolp nil) nil))
+
+
+(defun chain-recur-queue-token (input output)
+  "Recursively check for tokens, transform them if necessary and checks for error"
+  (let ((next (car input))
+        (remain (cdr input))
+        (last (car output)))
+    ;; Checking for possible errors
+    (if (equal last nil)
+        (when (chain-token-operatorp next)
+          (user-error "Cannot start chain with an operator!"))
+      (when (and (chain-token-operatorp next) (chain-token-operatorp (car output)))
+        (user-error "Invalid syntax: Two operators following each other")))
+
+    (cond
+     ;; Empty input queue
+     ((equal next nil) (reverse output))
+
+     ;; Parenthesis and operators are simply added to output stack
+     ((chain-token-operatorp next) (chain-recur-queue-token remain (cons next output)))
+     ((chain-token-parenthesisp next) (chain-recur-queue-token remain (cons next output)))
+
+     ;; Number (only for multiplicator)
+     ((not (equal (string-to-number next) 0))
+      (if (equal last "*")
+          (chain-recur-queue-token remain (cons (string-to-number next) output))
+        (user-error "Invalid syntax: Use numbers only for the multiplicator(*) operator")))
+
+     ;; If we are here we have a symbol, we check if previous was symbol
+     ;; and we insert the default _ operator (softnesting)
+     ((chain-token-symbolp last) (chain-recur-queue-token input (cons "_" output)))
+
+     ((equal last "*") (user-error "Invalid syntax: cannot multiply two templates together"))
+
+     (t (chain-recur-queue-token remain (cons next output))))))
+(cl-assert (equal (chain-recur-queue-token '("a") nil) '("a")))
+(cl-assert (equal (chain-recur-queue-token '("a" ">" "b") nil) '("a" ">" "b")))
+(cl-assert (equal (chain-recur-queue-token '("a" ">" "b" ">" "c") nil) '("a" ">" "b" ">" "c")))
+(cl-assert (equal (chain-recur-queue-token '("a" "b") nil) '("a" "_" "b")))
+(cl-assert (equal (chain-recur-queue-token '("a" "*" "8") nil) '("a" "*" 8)))
+
 (defun chain-parse-tokens (str)
   "Parse a string into the different tokens we want"
-  )
+  ;; Pad our special characters with space
+  (chain-recur-queue-token
+   (split-string
+    (s-replace-all
+     (--map (cons it (s-center 3 it)) (append '("(" ")") chain-token-operators)) str)) nil))
+(cl-assert (equal (chain-parse-tokens "d > a > e") '("d" ">" "a" ">" "e")))
+(cl-assert (equal (chain-parse-tokens "d>a>e") '("d" ">" "a" ">" "e")))
+(cl-assert (equal (chain-parse-tokens "d a > e") '("d" "_" "a" ">" "e")))
 
 ;; Shunting yard algorithm
-(setq chain-precedences
-      '(("APPEND" . 3) ("NEST" . 4) ("MUL" . 5) ("SOFTNEST" . 2) ("SOFTAPPEND" . 1) ("(" . 999)
-        ))
-(defun chain-has-precedence-p (operator1 operator2)
+(defun chain-has-not-precedence-p (operator1 operator2)
   "Return t if operator1 has precedence over operator2"
-  (> (cdr (assoc operator1 chain-precedences)) (cdr (assoc operator2 chain-precedences))))
-(cl-assert (equal (chain-has-precedence-p "APPEND" "NEST") nil))
-(cl-assert (equal (chain-has-precedence-p "NEST" "APPEND") t))
-(cl-assert (equal (chain-has-precedence-p "NEST" "NEST") nil))
-(cl-assert (equal (chain-has-precedence-p "APPEND" "(") nil))
+  (<= (cdr (assoc operator1 chain-token-precedences)) (cdr (assoc operator2 chain-token-precedences))))
+(cl-assert (equal (chain-has-not-precedence-p "+" ">") t))
+(cl-assert (equal (chain-has-not-precedence-p ">" "+") nil))
+(cl-assert (equal (chain-has-not-precedence-p ">" ">") t))
+(cl-assert (equal (chain-has-not-precedence-p "+" "(") nil))
 
-(defun chain-pop-operators (operator outputStack operatorStack)
-  "Function that will pop higher or equal precedence operators from operatorStack"
-  ;; It will pop it into outputStack whic will be returned
-  (let ((popped (car operatorStack)))
-    (cond
-     ((equal popped nil) `(,outputStack ,(cons operator nil)))
-     ((equal (chain-has-precedence-p operator popped) nil)
-      (chain-pop-operators operator (cons popped outputStack) (cdr operatorStack)))
-     (t `(,outputStack ,(cons operator operatorStack))))))
+(defun chain-take-while (predicate input)
+  "Variation of the dash.el take while that returns elements matching predicate and the remainder"
+  (let ((result (-take-while predicate input)))
+    `(,result ,(-slice input (length result)))))
+(cl-assert (equal (chain-take-while (lambda (item) (> item 2)) '(4 5 2 5 6)) '((4 5) (2 5 6))))
+(cl-assert (equal (chain-take-while (lambda (item) (> item 2)) '(4 5 3 5 6)) '((4 5 3 5 6) nil)))
 
-(cl-assert (equal (chain-pop-operators "NEST" nil nil) '(nil ("NEST"))))
-(cl-assert (equal (chain-pop-operators "NEST" '(1 2) nil) '((1 2) ("NEST"))))
-(cl-assert (equal (cdr (chain-pop-operators "NEST" '(1 2) nil)) '("NEST")))
-(cl-assert (equal (chain-pop-operators "NEST" '(1) nil) '((1) ("NEST"))))
-(cl-assert (equal
-            (chain-pop-operators "NEST" '(1 2) '("MUL" "APPEND"))
-            '(("MUL" 1 2) ("NEST" "APPEND"))))
-(cl-assert (equal
-            (chain-pop-operators "NEST" '(1 2) '("NEST" "MUL" "APPEND"))
-            '(("MUL" "NEST" 1 2) ("NEST" "APPEND"))))
-
-
-(defun chain-pop-parenthesis (outputStack operatorStack)
-  "Function that will pop operators from the stack until left parens"
-  (let ((popped (car operatorStack)))
-    (if (equal popped "(")
-        ;; Alright we return!
-        `(,outputStack ,(cdr operatorStack))
-      (when popped (chain-pop-parenthesis (cons popped outputStack) (cdr operatorStack))))))
-
-(cl-assert (equal
-            (chain-pop-parenthesis '("APPEND" 1 2) '("MUL" "(" "APPEND"))
-            '(("MUL" "APPEND" 1 2) ("APPEND"))))
-(cl-assert (equal
-            (chain-pop-parenthesis '("APPEND" 1 2) '("MUL" "("))
-            '(("MUL" "APPEND" 1 2) nil)))
-
-(defun chain-parenp (token)
-  "Return true if token is a parenthesis"
-  (member token '("LEFT" "RIGHT")))
-
-(defun chain-operatorp (token)
-  "Return true if token is an operator"
-  (member token '("APPEND" "NEST" "MUL" "SOFTAPPEND" "SOFTNEST")))
-
-(defun chain-rpn-analyze (tokens outputStack operatorStack)
+(defun chain-rpn-analyze (input output stack)
   "Recursive function that analyze the next token on the stack"
-  (let ((token (car tokens)))
+  (let ((next (car input))
+        (remain (cdr input))
+        (last-operator (car stack)))
     (cond
-     ((equal token nil)
-      (if (equal (car operatorStack) nil)
-          ;; We have the final answer
-          ;; We will reverse the list so it is in rpn format
-          (reverse outputStack)
-        ;; We recursively pop the operator stack onto the output stack
-        (chain-rpn-analyze tokens
-                           (cons (car operatorStack) outputStack)
-                           (cdr operatorStack))))
-     ((equal token "(")
-      ;; Left parenthesis go on the operator stack
-      (chain-rpn-analyze (cdr tokens) outputStack (cons token operatorStack)))
-     ((equal token ")")
-      ;; We pop the operator stack until we found the left parenthesis
-      (let ((result (chain-pop-parenthesis outputStack operatorStack)))
-        (chain-rpn-analyze (cdr tokens) (car result) (car (cdr result)))))
-     ((chain-operatorp token)
-      ;; If it is an operator we need to pop operators
-      ;; until the operator stack has a lower precedence
-      (let ((result (chain-pop-operators token outputStack operatorStack)))
-        (chain-rpn-analyze (cdr tokens) (car result) (car (cdr result)))))
-     (t
-      ;; It is a value we append to the outputstack
-      (chain-rpn-analyze (cdr tokens) (cons token outputStack) operatorStack)
-      ))))
+     ;; We have the final answer we append stack to output
+     ((equal next nil) (reverse (append (reverse stack) output)))
+     ((equal next "(") (chain-rpn-analyze remain output (cons next stack)))
+     ;; When we have a right parenthesis, we pop the operator stack until
+     ;; we found the left parenthesis
+     ((equal next ")")
+      (let ((result
+             (chain-take-while (lambda (item) (not (equal item "("))) stack)))
+        (chain-rpn-analyze remain
+                           (append (reverse (car result)) output)
+                           (-slice (car (cdr result)) 1))))
+
+     ;; If it is an operator we need to pop operators
+     ;; until the operator stack has a lower precedence
+     ((chain-token-operatorp next)
+      (let ((result
+             (chain-take-while (lambda (item) (chain-has-not-precedence-p next item)) stack)))
+        ;; You may notice we often reverse the result before doing append
+        ;; The reason is we use the lists as stacks
+        (chain-rpn-analyze remain (append (reverse (car result)) output) (cons next (car (cdr result))))))
+     (t (chain-rpn-analyze remain (cons next output) stack)))))
 
 (cl-assert (equal
-           (chain-rpn-analyze '(1 "APPEND" 2) nil nil)
-           '(1 2 "APPEND")))
+           (chain-rpn-analyze '(1 "+" 2) nil nil)
+           '(1 2 "+")))
 (cl-assert (equal
-           (chain-rpn-analyze '(1 "APPEND" 2 "APPEND" 3) nil nil)
-           '(1 2 "APPEND" 3 "APPEND")))
+           (chain-rpn-analyze '(1 "+" 2 "+" 3) nil nil)
+           '(1 2 "+" 3 "+")))
 (cl-assert (equal
-           (chain-rpn-analyze '(1 "APPEND" 2 "MUL" 3) nil nil)
-           '(1 2 3 "MUL" "APPEND")))
+           (chain-rpn-analyze '(1 "+" 2 "*" 3) nil nil)
+           '(1 2 3 "*" "+")))
 (cl-assert (equal
-           (chain-rpn-analyze '(1 "MUL" 2 "APPEND" 3) nil nil)
-           '(1 2 "MUL" 3 "APPEND")))
+            (chain-rpn-analyze '(1 "+" 2 "*" 3 "+" 4 "*" 3) nil nil)
+           '(1 2 3 "*" "+" 4 3 "*" "+")))
 (cl-assert (equal
-           (chain-rpn-analyze '("(" 1 "APPEND" 2 ")" "MUL" 3) nil nil)
-           '(1 2 "APPEND" 3 "MUL")))
+           (chain-rpn-analyze '(1 "*" 2 "+" 3) nil nil)
+           '(1 2 "*" 3 "+")))
+(cl-assert (equal
+           (chain-rpn-analyze '("(" 1 "+" 2 ")" "*" 3) nil nil)
+           '(1 2 "+" 3 "*")))
 
-(defun chain-rpn (tokens)
-  "Parse tokens and transform it into the rpn (reverse polish notation)"
-  )
 
-(defun chain-eval-rpn (rpn-stack)
+
+(setq templates
+      '(("i" . "if $1 then $0;")
+        ("v" . "const $1 = $0;")
+        ("v:i" . "$1 ? $2 : $0")
+        ("c" . "class $1 extends $2: $0")
+        ("c:f"   . "function $1(self, $2):")
+        ("f" . "function $1($2):")))
+
+;; Not sure if it is the best way to do what I want
+;; TODO: Refactor when better understanding of lexical binding
+(defun chain-find-template (template-keys)
+  "Recursively try to find a template"
+  (let ((result (assoc (string-join template-keys ":") templates)))
+    (if result (cdr result) (chain-find-template (cdr template-keys)))))
+(cl-assert (equal (chain-find-template '("v" "i")) "$1 ? $2 : $0"))
+(cl-assert (equal (chain-find-template '("v" "c")) "class $1 extends $2: $0"))
+
+;; Represents a template that is wrapped for lazy evaluation
+(defclass wrapped-template ()
+  ((name :initarg :name
+         :type string)
+   (value :initarg :value)))
+
+(defun chain-eval-template (wrapped parents)
+  "Evaluate a wrapped template"
+  (funcall (oref wrapped value) parents))
+
+(defun chain-wrap-template (template-key)
+  "Wrap a template-key into a lazy accessor"
+  (wrapped-template :name template-key
+                    :value `(lambda (parents)
+                              (chain-find-template (append parents '(,template-key))))))
+
+(defun chain-nest-wrapped-template (wrapped-1 wrapped-2)
+  "Nest wrapped-2 inside wrapped-1 and returns a wrapped template"
+  (wrapped-template :name (oref wrapped-1 name)
+                    :value `(lambda (parents)
+                              (chain-nest
+                               (funcall ,(oref wrapped-1 value) parents)
+                               (funcall ,(oref wrapped-2 value)
+                                        (append parents '(,(oref wrapped-1 name))))))))
+(cl-assert (equal
+            (chain-eval-template
+             (chain-nest-wrapped-template
+              (chain-wrap-template "v")
+              (chain-wrap-template "i")) nil)
+            "const $1 = $2 ? $3 : $0;"))
+
+(defun chain-append-wrapped-template (wrapped-1 wrapped-2)
+  "Append wrapped-2 after wrapped-1"
+  (wrapped-template :name (oref wrapped-2 name)
+                    :value `(lambda (parents)
+                              (chain-append
+                               (funcall ,(oref wrapped-1 value) parents)
+                               (funcall ,(oref wrapped-2 value) parents)))))
+(cl-assert (equal
+            (chain-eval-template
+             (chain-append-wrapped-template
+              (chain-wrap-template "v")
+              (chain-wrap-template "i")) nil)
+            "const $1 = $2;/nif $3 then $0"))
+
+(defun chain-eval-rpn (input output)
   "Evaluate the RPN stack sent in params"
+  (let ((next (car input)) (remain (cdr input)))
+    (cond
+     ((equal next nil) (chain-eval-template (car output) nil))
+     ;; Nest and soft nesting
+     ((or (equal next ">") (equal next "_"))
+      (chain-eval-rpn remain (cons
+                              (chain-nest-wrapped-template
+                               (nth 1 output)
+                               (nth 0 output))
+                              (nthcdr 2 output))))
+
+     ;; Append and soft appending
+     ((or (equal next "+") (equal next ","))
+      (chain-eval-rpn remain (cons
+                              (chain-append-wrapped-template
+                               (nth 1 output)
+                               (nth 0 output))
+                              (nthcdr 2 output))))
+
+     ;;Factoring
+     ((equal next "*") nil)
+
+     ;; Simple term
+     (t (chain-eval-rpn remain (cons (chain-wrap-template next) output)))
+     )))
+
+(cl-assert (equal (chain-eval-rpn '("v" "i" ">") nil) "const $1 = $2 ? $3 : $0;"))
+(cl-assert (equal (chain-eval-rpn '("v" "i" "+") nil) "const $1 = $2;/nif $3 then $0"))
+
+(defun chain-rpn (expression)
+  "Parses a zen expression and return a yasnippet template"
   )
-
-
 (defun my/get-exit-fields (template-str)
    (-concat
     (s-match-strings-all simple-exit-field-regex template-str)
@@ -348,5 +471,3 @@ ${20:$(downcase yas-test)}. ${  das}")
 
 (general-define-key :prefix default-leader-key
                     "tt" 'my/yas-inser)
-19
-$1 = $0if $1 then $2;
