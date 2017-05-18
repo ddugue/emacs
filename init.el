@@ -1011,3 +1011,18 @@ current window."
     (insert (apply 'concat (reverse body-list)))
     (message (format "Wrote %d code blocks to init.el" (length body-list))))))
 
+(custom-set-variables
+ ;; custom-set-variables was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ '(evil-want-Y-yank-to-eol t)
+ '(package-selected-packages
+   (quote
+    (yasnippet eww-lnum org-bullets ledger-mode dired-ranger evil-surround yaml-mode which-key web-mode virtualenvwrapper use-package projectile org-plus-contrib magit linum-relative key-chord julia-mode hydra highlight-numbers highlight-indentation general flycheck fill-column-indicator evil-commentary counsel company-jedi))))
+(custom-set-faces
+ ;; custom-set-faces was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ )
