@@ -116,6 +116,11 @@ Allow to easily surround a text object with another text object
 (customize-set-variable 'evil-want-Y-yank-to-eol t)
 
 #+END_SRC
+***
+***
+***
+***
+***
 ** General
 General is a replacement for traditional keybindings, for keychords
 AND for evil leader. Damn useful if you ask me.
@@ -366,6 +371,15 @@ Ideally we would not need both.
   (setq company-require-match 'never))
 
 #+END_SRC
+*** IEdit
+Iedit allows to edit multiple region of a same symbol
+[[https://github.com/victorhge/iedit][Project homepage]]
+
+#+BEGIN_SRC emacs-lisp
+(use-package iedit
+  :commands (iedit-mode)
+  :ensure t)
+#+END_SRC
 * 3. Preferences
 Various preferences configurations
 ** Visual preferences
@@ -567,6 +581,48 @@ it will jump page
 (setq scroll-step 1)
 
 #+END_SRC
+** Autoclosing buffers
+I usually end up with lots of buffers floating around. So i took this script from:
+[https://www.emacswiki.org/emacs/KillingBuffers#toc12]
+
+It autocloses my saved buffers every hour (initially every 2 hours)
+#+BEGIN_SRC emacs-lisp
+;;; midnight mode
+
+(require 'midnight)
+
+;;kill buffers if they were last disabled more than this seconds ago
+(setq clean-buffer-list-delay-special 900)
+
+(defvar clean-buffer-list-timer nil
+  "Stores clean-buffer-list timer if there is one. You can disable clean-buffer-list by (cancel-timer clean-buffer-list-timer).")
+
+;; run clean-buffer-list every 2 hours
+(setq clean-buffer-list-timer (run-at-time t 7200 'clean-buffer-list))
+
+;; kill everything, clean-buffer-list is very intelligent at not killing
+;; unsaved buffer.
+(setq clean-buffer-list-kill-regexps '("^.*$"))
+
+;; keep these buffer untouched
+;; prevent append multiple times
+(defvar clean-buffer-list-kill-never-buffer-names-init
+  clean-buffer-list-kill-never-buffer-names
+  "Init value for clean-buffer-list-kill-never-buffer-names")
+(setq clean-buffer-list-kill-never-buffer-names
+      (append
+       '("*Messages*" "*cmd*" "*scratch*" "*w3m*" "*w3m-cache*" "*Inferior Octave*")
+       clean-buffer-list-kill-never-buffer-names-init))
+
+;; prevent append multiple times
+(defvar clean-buffer-list-kill-never-regexps-init
+  clean-buffer-list-kill-never-regexps
+  "Init value for clean-buffer-list-kill-never-regexps")
+;; append to *-init instead of itself
+(setq clean-buffer-list-kill-never-regexps
+      (append '("^\\*EMMS Playlist\\*.*$")
+	      clean-buffer-list-kill-never-regexps-init))
+#+END_SRC
 ** TODO Server mode
 * 4. Help
 In this section everything, we can find everything linked to globally
@@ -601,8 +657,29 @@ project files for instance
 ;; Install projectile
 (use-package projectile
   :ensure t
-  :commands (projectile-mode projectile-project-p))
+  :commands (projectile-mode projectile-project-p projectile-dired))
 
+#+END_SRC
+*** Counsel-projectile
+Make use of package counsel-projectile to switch to project
+
+#+BEGIN_SRC emacs-lisp
+;; Install counsel-projectile
+(use-package counsel-projectile
+  :ensure t
+  :commands (counsel-projectile-switch-project))
+#+END_SRC
+*** Shell command for project
+Execute a shell command, spawns a comint window and make it mini mini!
+#+BEGIN_SRC emacs-lisp
+(defun my/executor-root (cmd)
+  "Execute a command in the root directory of the project"
+  (interactive "sCommand to execute:")
+  (let (
+(default-directory (when (projectile-project-p) (projectile-project-root)))
+(shell-file-name "bash"))
+
+    (my/executor cmd)))
 #+END_SRC
 *** Search ag on a project root
 Add a function to search with ag with the root of the search
@@ -733,7 +810,7 @@ Flycheck is the best package (compared to flymake) for syntax checking.
 
 #+BEGIN_SRC emacs-lisp
 (use-package flycheck
-  :commands (flycheck-mode)
+  :commands (flycheck-mode flycheck-add-mode)
   :ensure t
   :init
     (setq-default flycheck-disabled-checkers '(python-flake8 javascript-jshint))
@@ -829,8 +906,14 @@ TODO: Make better integration
       (:states '(normal visual)
        :keymaps 'wdired-mode-map
        "<C-return>" 'my/wdired-commit
-       "<return>" 'dired-find-file
+       "<return>" 'dired-find-file)
+      (:states '(normal visual)
+       :keymaps '(dired-mode-map wdired-mode-map)
+       "m" 'my/dired-toggle-mark
        "dd" 'my/dired-do-delete
+       "zz" 'dired-maybe-insert-subdir
+       "y" 'dired-ranger-copy
+       "p" 'dired-ranger-paste
       )
       (:states '(normal visual)
        :keymaps '(dired-mode-map wdired-mode-map)
@@ -838,11 +921,7 @@ TODO: Make better integration
        "!"  'dired-do-shell-command
        "i"  'dired-create-directory
        "a"  'my/touch-file
-       "zz" 'dired-maybe-insert-subdir
-       "y" 'dired-ranger-copy
-       "p" 'dired-ranger-paste
        "m" 'dired-ranger-move
-       "m" 'my/dired-toggle-mark
        "%" 'dired-mark-files-regexp)
       :config
       (add-hook 'dired-after-readin-hook
@@ -899,7 +978,46 @@ We configrure org mode
     "M-l" 'org-metaright))
 #+END_SRC
 ** Shell
+*** Execute simple command
+Function to execute a simple command, bind it to a process and show it in a "shell" buffer.
+autocloses on exit status
+
+#+BEGIN_SRC emacs-lisp
+   ;; (defun my/executor (cmd)
+   ;;   "Execute a command in a subshell"
+   ;;   (interactive "sCommand to execute:")
+   ;;   (save-selected-window
+   ;;     (let ((frame (make-frame))
+   ;;           (buffer (generate-new-buffer "*commands*")))
+   ;;          (with-current-buffer buffer
+   ;;             ;; (display-buffer buffer '((display-buffer-reuse-window)) frame)
+   ;;             (comint-mode))))
+   ;;   (select-frame (window-frame (get-buffer-window))))
+
+        ;; (let ((process
+        ;;         (start-file-process-shell-command
+        ;;         "sub-process"
+        ;;         buffer
+        ;;         cmd)))
+        ;;     (set-process-sentinel process
+        ;;         (lambda (process event)
+        ;;             (message event))))))
+  ;; (set-process-filter process 'ansi-color-process-output)
+       ;; (if (equal event "open\n")
+       ;;   (when (get-buffer buf) (display-buffer buf t))
+       ;; (when (= 0 (process-exit-status process))
+       ;;   (let ((buf (process-buffer process)))
+       ;;     (when (get-buffer buf)
+       ;;       (display-buffer buf t)
+       ;;       (run-at-time "5 sec" nil (lambda (buffer)
+       ;;       (when (get-buffer buffer)
+       ;;       (delete-frame (window-frame (get-buffer-window buffer)))
+       ;;       (kill-buffer buffer))) buf)
+       ;;       )))))))
+#+END_SRC
+
 *** Ansi-term
+
 #+BEGIN_SRC emacs-lisp
 (defun my/shell-open ()
   "Open a shell in root of project"
@@ -907,19 +1025,22 @@ We configrure org mode
    (let ((project-root (if (projectile-project-p) (projectile-project-root) "~")))
          (progn
            (message project-root)
-           (pop-to-buffer "*ansi-term*")
-           (ansi-term "zsh" "ansi-term")
+           (shell (generate-new-buffer-name "*shell*"))
            (end-of-buffer)
            (insert (concat "cd " project-root))
-           (term-send-input)
-           (end-of-buffer)
-           (insert "clear")
-           (term-send-input))))
+           (comint-send-input)
+           (comint-clear-buffer)
+           )))
 #+END_SRC
+
 #+BEGIN_SRC emacs-lisp
 ;; Make ansi-term lazy-load
-(use-package ansi-term
-    :commands (ansi-term))
+(use-package shell
+    :commands (shell)
+    :bind (:map shell-mode-map
+    ([tab] . counsel-company))
+    :init (evil-set-initial-state 'shell 'emacs)
+)
 #+END_SRC
 *** Automatic frame management
 Ensures that the ansi-terminal spawns in a new frame
@@ -927,15 +1048,21 @@ Ensures that the ansi-terminal spawns in a new frame
 
 ;; For help buffers
 (add-to-list 'display-buffer-alist
-   '("^\\*[Aa]nsi.*$" .
+   '("^\\*[Ss]hell.*$" .
        ((display-buffer-pop-up-frame)
-        . ((pop-up-frame-parameters . ((name . "ansi-terminal")
+        . ((pop-up-frame-parameters . ((name . "shell-terminal")
                                       (minibuffer . nil)
                                       (unsplittable . t))
           ))
        )
     )
 )
+#+END_SRC
+*** Ansi colors
+Add ansi colors to comint shell outputs!
+#+BEGIN_SRC emacs-lisp
+(add-hook 'shell-mode-hook 'ansi-color-for-comint-mode-on)
+(add-to-list 'comint-output-filter-functions 'ansi-color-process-output)
 #+END_SRC
 ** EWW (Web browsing)
 Installs and configures EWW for web browsing
@@ -1065,6 +1192,18 @@ Simple command to open this org file quickly
     (interactive)
     (find-file "~/.emacs.d/init.org"))
 
+#+END_SRC
+** Calc
+Calculator for quick computation (uses RPN notation in calc-mode)
+
+#+BEGIN_SRC emacs-lisp
+(use-package calculator
+   :commands (calculator)
+   :init
+      (add-to-list 'evil-emacs-state-modes 'calculator-mode)
+      (evil-set-initial-state 'calculator-mode 'emacs)
+
+)
 #+END_SRC
 * 8. Programming languages & environment
 In this section we regrouped the different programming languages environment and
@@ -1275,6 +1414,9 @@ Every key under the leader key should be defined here
   "gg" 'magit-status
   "/"  'my/git-ag
 
+  ;; Refactoring / Replace
+  "r"  'iedit-mode
+
   ;; Buffers
   "b"  '(:ignore t :which-key "Buffers")
   "bb" 'ivy-switch-buffer
@@ -1286,7 +1428,7 @@ Every key under the leader key should be defined here
   ;; Files
   "f"  '(:ignore t :which-key "Files")
   "ff" 'counsel-find-file
-  "fl" 'locate-file
+  "fl" 'counsel-locate
   "f!" 'spacemacs/sudo-edit
   "fs" 'save-buffer
 
@@ -1317,6 +1459,8 @@ Every key under the leader key should be defined here
   "RET" 'my/shell-open
   "a"  '(:ignore t :which-key "Applications")
   "aw" 'eww
+  "ac" 'calculator
+  "ad" 'dired-jump
 
   ;; Inserts
   "i" '(:ignore t :which-key "Inserts")

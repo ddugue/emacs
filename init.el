@@ -222,6 +222,9 @@
         '(company-preview-frontend counsel-company-frontend))
   (setq company-require-match 'never))
 
+(use-package iedit
+  :commands (iedit-mode)
+  :ensure t)
 (scroll-bar-mode -1)
 (menu-bar-mode -1)
 (tool-bar-mode -1)
@@ -333,6 +336,41 @@
 
 (setq scroll-step 1)
 
+;;; midnight mode
+
+(require 'midnight)
+
+;;kill buffers if they were last disabled more than this seconds ago
+(setq clean-buffer-list-delay-special 900)
+
+(defvar clean-buffer-list-timer nil
+  "Stores clean-buffer-list timer if there is one. You can disable clean-buffer-list by (cancel-timer clean-buffer-list-timer).")
+
+;; run clean-buffer-list every 2 hours
+(setq clean-buffer-list-timer (run-at-time t 7200 'clean-buffer-list))
+
+;; kill everything, clean-buffer-list is very intelligent at not killing
+;; unsaved buffer.
+(setq clean-buffer-list-kill-regexps '("^.*$"))
+
+;; keep these buffer untouched
+;; prevent append multiple times
+(defvar clean-buffer-list-kill-never-buffer-names-init
+  clean-buffer-list-kill-never-buffer-names
+  "Init value for clean-buffer-list-kill-never-buffer-names")
+(setq clean-buffer-list-kill-never-buffer-names
+      (append
+       '("*Messages*" "*cmd*" "*scratch*" "*w3m*" "*w3m-cache*" "*Inferior Octave*")
+       clean-buffer-list-kill-never-buffer-names-init))
+
+;; prevent append multiple times
+(defvar clean-buffer-list-kill-never-regexps-init
+  clean-buffer-list-kill-never-regexps
+  "Init value for clean-buffer-list-kill-never-regexps")
+;; append to *-init instead of itself
+(setq clean-buffer-list-kill-never-regexps
+      (append '("^\\*EMMS Playlist\\*.*$")
+	      clean-buffer-list-kill-never-regexps-init))
 ;; Configuration and installation of which-key
 (use-package which-key
     :ensure t
@@ -344,8 +382,20 @@
 ;; Install projectile
 (use-package projectile
   :ensure t
-  :commands (projectile-mode projectile-project-p))
+  :commands (projectile-mode projectile-project-p projectile-dired))
 
+;; Install counsel-projectile
+(use-package counsel-projectile
+  :ensure t
+  :commands (counsel-projectile-switch-project))
+(defun my/executor-root (cmd)
+  "Execute a command in the root directory of the project"
+  (interactive "sCommand to execute:")
+  (let (
+(default-directory (when (projectile-project-p) (projectile-project-root)))
+(shell-file-name "bash"))
+
+    (my/executor cmd)))
 (defun my/git-ag (&optional initial-input)
   "Search with ag on the git root if possible"
   (interactive)
@@ -447,7 +497,7 @@ Return a list with the contents of the table cell."
                   (flycheck-error-list-make-cell
                    msg-and-checker nil msg-and-checker))))))
 (use-package flycheck
-  :commands (flycheck-mode)
+  :commands (flycheck-mode flycheck-add-mode)
   :ensure t
   :init
     (setq-default flycheck-disabled-checkers '(python-flake8 javascript-jshint))
@@ -528,8 +578,14 @@ Return a list with the contents of the table cell."
       (:states '(normal visual)
        :keymaps 'wdired-mode-map
        "<C-return>" 'my/wdired-commit
-       "<return>" 'dired-find-file
+       "<return>" 'dired-find-file)
+      (:states '(normal visual)
+       :keymaps '(dired-mode-map wdired-mode-map)
+       "m" 'my/dired-toggle-mark
        "dd" 'my/dired-do-delete
+       "zz" 'dired-maybe-insert-subdir
+       "y" 'dired-ranger-copy
+       "p" 'dired-ranger-paste
       )
       (:states '(normal visual)
        :keymaps '(dired-mode-map wdired-mode-map)
@@ -537,11 +593,7 @@ Return a list with the contents of the table cell."
        "!"  'dired-do-shell-command
        "i"  'dired-create-directory
        "a"  'my/touch-file
-       "zz" 'dired-maybe-insert-subdir
-       "y" 'dired-ranger-copy
-       "p" 'dired-ranger-paste
        "m" 'dired-ranger-move
-       "m" 'my/dired-toggle-mark
        "%" 'dired-mark-files-regexp)
       :config
       (add-hook 'dired-after-readin-hook
@@ -572,35 +624,70 @@ Return a list with the contents of the table cell."
     :keymaps 'org-mode-map
     "M-h" 'org-metaleft
     "M-l" 'org-metaright))
+   ;; (defun my/executor (cmd)
+   ;;   "Execute a command in a subshell"
+   ;;   (interactive "sCommand to execute:")
+   ;;   (save-selected-window
+   ;;     (let ((frame (make-frame))
+   ;;           (buffer (generate-new-buffer "*commands*")))
+   ;;          (with-current-buffer buffer
+   ;;             ;; (display-buffer buffer '((display-buffer-reuse-window)) frame)
+   ;;             (comint-mode))))
+   ;;   (select-frame (window-frame (get-buffer-window))))
+
+        ;; (let ((process
+        ;;         (start-file-process-shell-command
+        ;;         "sub-process"
+        ;;         buffer
+        ;;         cmd)))
+        ;;     (set-process-sentinel process
+        ;;         (lambda (process event)
+        ;;             (message event))))))
+  ;; (set-process-filter process 'ansi-color-process-output)
+       ;; (if (equal event "open\n")
+       ;;   (when (get-buffer buf) (display-buffer buf t))
+       ;; (when (= 0 (process-exit-status process))
+       ;;   (let ((buf (process-buffer process)))
+       ;;     (when (get-buffer buf)
+       ;;       (display-buffer buf t)
+       ;;       (run-at-time "5 sec" nil (lambda (buffer)
+       ;;       (when (get-buffer buffer)
+       ;;       (delete-frame (window-frame (get-buffer-window buffer)))
+       ;;       (kill-buffer buffer))) buf)
+       ;;       )))))))
 (defun my/shell-open ()
   "Open a shell in root of project"
   (interactive)
    (let ((project-root (if (projectile-project-p) (projectile-project-root) "~")))
          (progn
            (message project-root)
-           (pop-to-buffer "*ansi-term*")
-           (ansi-term "zsh" "ansi-term")
+           (shell (generate-new-buffer-name "*shell*"))
            (end-of-buffer)
            (insert (concat "cd " project-root))
-           (term-send-input)
-           (end-of-buffer)
-           (insert "clear")
-           (term-send-input))))
+           (comint-send-input)
+           (comint-clear-buffer)
+           )))
 ;; Make ansi-term lazy-load
-(use-package ansi-term
-    :commands (ansi-term))
+(use-package shell
+    :commands (shell)
+    :bind (:map shell-mode-map
+    ([tab] . counsel-company))
+    :init (evil-set-initial-state 'shell 'emacs)
+)
 
 ;; For help buffers
 (add-to-list 'display-buffer-alist
-   '("^\\*[Aa]nsi.*$" .
+   '("^\\*[Ss]hell.*$" .
        ((display-buffer-pop-up-frame)
-        . ((pop-up-frame-parameters . ((name . "ansi-terminal")
+        . ((pop-up-frame-parameters . ((name . "shell-terminal")
                                       (minibuffer . nil)
                                       (unsplittable . t))
           ))
        )
     )
 )
+(add-hook 'shell-mode-hook 'ansi-color-for-comint-mode-on)
+(add-to-list 'comint-output-filter-functions 'ansi-color-process-output)
 (use-package eww-lnum
   :ensure t)
 
@@ -689,6 +776,13 @@ current window."
     (interactive)
     (find-file "~/.emacs.d/init.org"))
 
+(use-package calculator
+   :commands (calculator)
+   :init
+      (add-to-list 'evil-emacs-state-modes 'calculator-mode)
+      (evil-set-initial-state 'calculator-mode 'emacs)
+
+)
 (defun my/set-venv ()
   (interactive)
   (require 'projectile)
@@ -836,6 +930,9 @@ current window."
   "gg" 'magit-status
   "/"  'my/git-ag
 
+  ;; Refactoring / Replace
+  "r"  'iedit-mode
+
   ;; Buffers
   "b"  '(:ignore t :which-key "Buffers")
   "bb" 'ivy-switch-buffer
@@ -847,7 +944,7 @@ current window."
   ;; Files
   "f"  '(:ignore t :which-key "Files")
   "ff" 'counsel-find-file
-  "fl" 'locate-file
+  "fl" 'counsel-locate
   "f!" 'spacemacs/sudo-edit
   "fs" 'save-buffer
 
@@ -878,6 +975,8 @@ current window."
   "RET" 'my/shell-open
   "a"  '(:ignore t :which-key "Applications")
   "aw" 'eww
+  "ac" 'calculator
+  "ad" 'dired-jump
 
   ;; Inserts
   "i" '(:ignore t :which-key "Inserts")
