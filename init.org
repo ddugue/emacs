@@ -19,6 +19,11 @@ We add melpa to the package-archives
              '("melpa" . "https://melpa.org/packages/"))
 
 #+END_SRC
+** Vendor packages
+Add the vendor directory for a source of .el files
+#+BEGIN_SRC emacs-lisp
+(add-to-list 'load-path (concat user-emacs-directory "vendors/"))
+#+END_SRC
 ** Org archives
 We also enable org as an archive source
 #+BEGIN_SRC emacs-lisp
@@ -839,6 +844,38 @@ Function to toggle flycheck mode
 * 7. Application & Tools
 In this section we can find the different applications and utility functions used
 by my emacs installation.
+** Yasnippet
+Yasnippet is a tool to create snippets that expands text. It's goddamn useful:
+[[https://github.com/joaotavora/yasnippet][Project Homepage]]
+
+*** Installation
+#+BEGIN_SRC emacs-lisp
+(use-package yasnippet
+  :commands (yas-minor-mode yas-new-snippet)
+  :ensure t
+  :config
+  (yas-reload-all)
+  ;; We disable the default tab keyboard shortcut
+  (define-key yas-minor-mode-map (kbd "<tab>") nil)
+  (define-key yas-minor-mode-map (kbd "TAB") nil)
+  :general
+  (:keymaps 'snippet-mode-map
+    "<C-return>" 'yas-load-snippet-buffer-and-close)
+)
+#+END_SRC
+
+*** Ya-chain
+Custom plugin
+
+#+BEGIN_SRC emacs-lisp
+(use-package ya-chain
+  :commands (ya-chain-mode)
+  :bind
+  (:map ya-chain-mode-map
+    ("<C-tab>" . chain-insert-template))
+)
+#+END_SRC
+
 
 ** Directory manager
 Configuration of dired
@@ -937,7 +974,14 @@ mode to edit ledger files
 #+BEGIN_SRC emacs-lisp
 (use-package ledger-mode
   :mode ("\\.dat\\'" . ledger-mode)
-  :ensure t)
+  :ensure t
+  :general
+  (:states '(normal visual)
+   :prefix application-leader-key
+   :keymaps 'ledger-mode-map
+     "=" 'ledger-mode-clean-buffer
+   )
+)
 #+END_SRC
 ** Org-mode
 *** Org indent mode
@@ -972,10 +1016,23 @@ We configrure org mode
 #+BEGIN_SRC emacs-lisp
 (use-package org
    :general
-   (:state '(insert normal visual)
+   (:states '(insert normal visual)
     :keymaps 'org-mode-map
     "M-h" 'org-metaleft
-    "M-l" 'org-metaright))
+    "M-l" 'org-metaright)
+   (:states '(normal visual)
+    :keymaps 'org-mode-map
+    :prefix application-leader-key
+    "l" 'org-toggle-latex-fragment)
+   :init
+   (setq org-preview-latex-default-process 'dvipng))
+#+END_SRC
+*** Org drill
+We configure org drill
+#+BEGIN_SRC emacs-lisp
+(use-package org-drill
+  :ensure org-plus-contrib
+  :commands (org-drill-directory))
 #+END_SRC
 ** Shell
 *** Execute simple command
@@ -1459,8 +1516,13 @@ Every key under the leader key should be defined here
   "RET" 'my/shell-open
   "a"  '(:ignore t :which-key "Applications")
   "aw" 'eww
+<<<<<<< HEAD
   "ac" 'calculator
   "ad" 'dired-jump
+=======
+  "ad" 'org-drill-directory
+  "ay" 'yas-new-snippet
+>>>>>>> c9acdc4ec52848baddec9c2e25d90d9452ba9593
 
   ;; Inserts
   "i" '(:ignore t :which-key "Inserts")
@@ -1474,7 +1536,8 @@ Every key under the leader key should be defined here
 #+BEGIN_SRC emacs-lisp
 (general-define-key
   ";" 'evil-commentary
-  "/" 'swiper)
+  "/" 'swiper
+  "é" 'swiper)
 
 (general-define-key "`"
   (general-key-dispatch 'evil-goto-mark
