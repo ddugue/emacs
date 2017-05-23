@@ -15,7 +15,7 @@
 ${20:$(downcase yas-test)}. ${  das}")
 
 
-                                        ;;(yas-expand-snippet template)
+;;(yas-expand-snippet template)
 ;;(lambda (s) (match-string 1))
 (setq reb-re-syntax 'string)
 (setq simple-field-regex "\\(\\$\\)\\([0-9]+\\)")
@@ -155,10 +155,23 @@ ${20:$(downcase yas-test)}. ${  das}")
 
     (s-append
      computed-child-template
-     (s-append "/n" computed-parent-template))))
+     (s-append "\n" computed-parent-template))))
 
-(cl-assert (equal (chain-append "$1 and $2;" "if $1") "$1 and $2;/nif $3"))
-(cl-assert (equal (chain-append "$1 and $0;" "if $1") "$1 and $2;/nif $3"))
+(cl-assert (equal (chain-append "$1 and $2;" "if $1") "$1 and $2;\nif $3"))
+(cl-assert (equal (chain-append "$1 and $0;" "if $1") "$1 and $2;\nif $3"))
+
+
+(defun chain-multiply (template n)
+  "Multiply template by n (append operation)"
+  (setq chain--parent-template template)
+  (setq iter 1)
+  (while (< iter n)
+    (setq chain--parent-template (chain-append chain--parent-template template))
+    (setq iter (+ iter 1)))
+  chain--parent-template)
+(cl-assert (equal (chain-multiply "$1 and $0;" 1) "$1 and $0;"))
+(cl-assert (equal (chain-multiply "$1 and $0;" 2) "$1 and $2;\n$3 and $0;"))
+(cl-assert (equal (chain-multiply "$1 and $0;" 3) "$1 and $2;\n$3 and $4;\n$5 and $0;"))
 
 ;; Parsing functions
 (setq chain-token-operators '(">" "," "*" "+" "_" ","))
@@ -191,7 +204,7 @@ ${20:$(downcase yas-test)}. ${  das}")
 (cl-assert (equal (chain-token-symbolp nil) nil))
 
 
-(defun chain-recur-queue-token (input output)
+(defun chain-recur-queue-token (input &optional output)
   "Recursively check for tokens, transform them if necessary and checks for error"
   (let ((next (car input))
         (remain (cdr input))
@@ -236,7 +249,7 @@ ${20:$(downcase yas-test)}. ${  das}")
   (chain-recur-queue-token
    (split-string
     (s-replace-all
-     (--map (cons it (s-center 3 it)) (append '("(" ")") chain-token-operators)) str)) nil))
+     (--map (cons it (s-center 3 it)) (append '("(" ")") chain-token-operators)) str))))
 (cl-assert (equal (chain-parse-tokens "d > a > e") '("d" ">" "a" ">" "e")))
 (cl-assert (equal (chain-parse-tokens "d>a>e") '("d" ">" "a" ">" "e")))
 (cl-assert (equal (chain-parse-tokens "d a > e") '("d" "_" "a" ">" "e")))
@@ -257,7 +270,7 @@ ${20:$(downcase yas-test)}. ${  das}")
 (cl-assert (equal (chain-take-while (lambda (item) (> item 2)) '(4 5 2 5 6)) '((4 5) (2 5 6))))
 (cl-assert (equal (chain-take-while (lambda (item) (> item 2)) '(4 5 3 5 6)) '((4 5 3 5 6) nil)))
 
-(defun chain-rpn-analyze (input output stack)
+(defun chain-rpn-analyze (input &optional output stack)
   "Recursive function that analyze the next token on the stack"
   (let ((next (car input))
         (remain (cdr input))
@@ -304,24 +317,38 @@ ${20:$(downcase yas-test)}. ${  das}")
            (chain-rpn-analyze '("(" 1 "+" 2 ")" "*" 3) nil nil)
            '(1 2 "+" 3 "*")))
 
+;; For Testing:
+(defun yas--get-template-by-key (key)
+  "Return the first template content that matches key or nil"
+  (let ((templates (cl-mapcan (lambda (table) (yas--fetch table key))
+                              (yas--get-snippet-tables))))
+    (when templates (s-trim (yas--template-content (cdr (car templates)))))))
 
-
-(setq templates
-      '(("i" . "if $1 then $0;")
-        ("v" . "const $1 = $0;")
-        ("v:i" . "$1 ? $2 : $0")
-        ("c" . "class $1 extends $2: $0")
-        ("c:f"   . "function $1(self, $2):")
-        ("f" . "function $1($2):")))
 
 ;; Not sure if it is the best way to do what I want
 ;; TODO: Refactor when better understanding of lexical binding
 (defun chain-find-template (template-keys)
   "Recursively try to find a template"
-  (let ((result (assoc (string-join template-keys ":") templates)))
-    (if result (cdr result) (chain-find-template (cdr template-keys)))))
-(cl-assert (equal (chain-find-template '("v" "i")) "$1 ? $2 : $0"))
-(cl-assert (equal (chain-find-template '("v" "c")) "class $1 extends $2: $0"))
+  (if template-keys
+    (let ((result (yas--get-template-by-key (string-join template-keys ":"))))
+      (if result result
+        (chain-find-template (cdr template-keys))))
+    (user-error "One of the key in the chain does not exist")
+  ))
+
+;; (KEY TEMPLATE NAME CONDITION GROUP VARS LOAD-FILE KEYBINDING UUID)
+(setq chain-test-table (yas--make-snippet-table "testing-table"))
+(setq chain-test-tables (yas--get-snippet-tables 'testing-table))
+(yas--define-snippets-1 '("TTT-a" "if $1 then $0;" "Test template 1") chain-test-table)
+(yas--define-snippets-1 '("TTT-b" "$1 === $0" "Test template 2") chain-test-table)
+(yas--define-snippets-1 '("TTT-a:TTT-b" "$1 : $0" "Test template 2 parented by 1") chain-test-table)
+
+
+(defun mock-yas--get-snippet-tables (&optional mode) (list chain-test-table))
+(cl-letf (((symbol-function 'yas--get-snippet-tables) 'mock-yas--get-snippet-tables))
+  (cl-assert (equal (chain-find-template '("TTT-a" "TTT-b")) "$1 : $0"))
+  (cl-assert (equal (chain-find-template '("TTT-b")) "$1 === $0"))
+  )
 
 ;; Represents a template that is wrapped for lazy evaluation
 (defclass wrapped-template ()
@@ -329,7 +356,7 @@ ${20:$(downcase yas-test)}. ${  das}")
          :type string)
    (value :initarg :value)))
 
-(defun chain-eval-template (wrapped parents)
+(defun chain-eval-template (wrapped &optional parents)
   "Evaluate a wrapped template"
   (funcall (oref wrapped value) parents))
 
@@ -347,12 +374,14 @@ ${20:$(downcase yas-test)}. ${  das}")
                                (funcall ,(oref wrapped-1 value) parents)
                                (funcall ,(oref wrapped-2 value)
                                         (append parents '(,(oref wrapped-1 name))))))))
-(cl-assert (equal
-            (chain-eval-template
-             (chain-nest-wrapped-template
-              (chain-wrap-template "v")
-              (chain-wrap-template "i")) nil)
-            "const $1 = $2 ? $3 : $0;"))
+
+(cl-letf (((symbol-function 'yas--get-snippet-tables) 'mock-yas--get-snippet-tables))
+  (cl-assert (equal (chain-eval-template
+                     (chain-nest-wrapped-template
+                      (chain-wrap-template "TTT-a")
+                      (chain-wrap-template "TTT-b")))
+                    "if $1 then $2 : $0;"
+  )))
 
 (defun chain-append-wrapped-template (wrapped-1 wrapped-2)
   "Append wrapped-2 after wrapped-1"
@@ -361,14 +390,32 @@ ${20:$(downcase yas-test)}. ${  das}")
                               (chain-append
                                (funcall ,(oref wrapped-1 value) parents)
                                (funcall ,(oref wrapped-2 value) parents)))))
-(cl-assert (equal
-            (chain-eval-template
-             (chain-append-wrapped-template
-              (chain-wrap-template "v")
-              (chain-wrap-template "i")) nil)
-            "const $1 = $2;/nif $3 then $0"))
 
-(defun chain-eval-rpn (input output)
+(cl-letf (((symbol-function 'yas--get-snippet-tables) 'mock-yas--get-snippet-tables))
+  (cl-assert (equal (chain-eval-template
+                     (chain-append-wrapped-template
+                      (chain-wrap-template "TTT-a")
+                      (chain-wrap-template "TTT-b")))
+                    "if $1 then $2;\n$3 === $0"
+  )))
+
+
+(defun chain-multiply-wrapped-template (wrapped constant)
+  "Multiple wrapped by constant"
+  (wrapped-template :name (oref wrapped name)
+                    :value `(lambda (parents)
+                              (chain-multiply
+                               (funcall ,(oref wrapped value) parents)
+                               ,constant))))
+(cl-letf (((symbol-function 'yas--get-snippet-tables) 'mock-yas--get-snippet-tables))
+  (cl-assert (equal (chain-eval-template
+                     (chain-multiply-wrapped-template
+                      (chain-wrap-template "TTT-a")
+                      2))
+                    "if $1 then $2;\nif $3 then $0;"
+                    )))
+
+(defun chain-eval-rpn (input &optional output)
   "Evaluate the RPN stack sent in params"
   (let ((next (car input)) (remain (cdr input)))
     (cond
@@ -390,84 +437,37 @@ ${20:$(downcase yas-test)}. ${  das}")
                               (nthcdr 2 output))))
 
      ;;Factoring
-     ((equal next "*") nil)
+     ((equal next "*")
+      (chain-eval-rpn remain (cons
+                              (chain-multiply-wrapped-template
+                               (nth 1 output)
+                               (nth 0 output))
+                               (nthcdr 2 output))))
 
      ;; Simple term
+     ((numberp next) (chain-eval-rpn remain (cons next output)))
      (t (chain-eval-rpn remain (cons (chain-wrap-template next) output)))
      )))
 
-(cl-assert (equal (chain-eval-rpn '("v" "i" ">") nil) "const $1 = $2 ? $3 : $0;"))
-(cl-assert (equal (chain-eval-rpn '("v" "i" "+") nil) "const $1 = $2;/nif $3 then $0"))
 
-(defun chain-rpn (expression)
-  "Parses a zen expression and return a yasnippet template"
-  )
-(defun my/get-exit-fields (template-str)
-   (-concat
-    (s-match-strings-all simple-exit-field-regex template-str)
-    (s-match-strings-all complex-exit-field-regex template-str)))
-
-(defun chain-increment-template (n template-str)
-  "Adds N offset to every occurrence of a yas-snippet-field"
-  (s-replace-all
-   (--map
-    (cons (nth 0 it)
-          (concat (nth 1 it)
-                  (number-to-string (+ (my/get-number it) n))
-                  (nth 3 it)))
-    (my/get-fields template-str))
-   template-str))
-
-(defun my/get-number (match)
-  (string-to-number (nth 2 match)))
-
-
-(defun my/set-0-to-latest (template-str latest)
-  "Transform 0 into the latest number field"
-  (s-replace-all
-   (--map
-    (cons (nth 0 it)
-          (concat (nth 1 it)
-                  (number-to-string (latest))
-                  (nth 3 it)))
-    (my/get-exit-fields template-str))
-   template-str))
-
-(defun my/get-last-position (regex str)
-  "Returns the ending position of first match of regex in str"
-  (cdr
-   (-first-item
-    (s-matched-positions-all regex template-str 1))))
-
-(defun my/get-exit-position (template-str)
-  "Returns the exit position (after 0 or end of string)"
-  (or
-   (or
-    (my/get-last-position simple-exit-field-regex template-str)
-    (my/get-last-position complex-exit-field-regex template-str))
-   ;; If no exit point, returns end of str
-   (length template-str)))
-
-  ;;(replace-regexp-in-string
-   ;;(lambda (s)
-    ;; (concat (match-string 1 s)
-     ;;        (number-to-string (+ (string-to-number (match-string 2 s)) n))
-      ;;       ))
-  ;; template-str))
-
-(defun my/yas-biggest (template-str)
-  "Returns the biggest yas-snippet number"
-  (--reduce-from
-   (max (my/get-number it) acc) 0 (my/get-fields template-str)))
-
-(defun my/yas-inser ()
+(defun chain-insert-template ()
+  "Parses a zen expression and insert a yasnippet template"
   (interactive)
-  (insert (number-to-string (my/yas-biggest template)))
-  (insert
-   (s-insert
-    template-1
-    template-2
-    (my/get-exit-position template-1))))
+  (let* ((p1 (line-beginning-position))
+         (p2 (min (line-end-position) (+ 1 (point))))
+         (expression (s-trim (buffer-substring-no-properties p1 p2)))
+         (template
+         (chain-eval-rpn (chain-rpn-analyze (chain-parse-tokens expression)))))
+    (yas-expand-snippet template p1 p2)))
 
-(general-define-key :prefix default-leader-key
-                    "tt" 'my/yas-inser)
+(define-minor-mode ya-chain-mode
+  "Toggle Ya-Chain mode.
+   This mode allows user to chain yasnippet with construct similar to the
+   zen mode approach (or Emmet, as it now stands)."
+  ;; The initial value.
+  nil
+  ;; The indicator for the mode line.
+  " y-c"
+  ;; The minor mode bindings.
+  '(((kbd "<C-tab>") . chain-insert-template))
+  )

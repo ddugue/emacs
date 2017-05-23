@@ -6,6 +6,7 @@
 (add-to-list 'package-archives
              '("melpa" . "https://melpa.org/packages/"))
 
+(add-to-list 'load-path (concat user-emacs-directory "vendors/"))
 
 (add-to-list 'package-archives
              '("org" . "http://orgmode.org/elpa/"))
@@ -466,6 +467,24 @@ Return a list with the contents of the table cell."
   (interactive)
   (flycheck-mode t)
   (flycheck-list-errors))
+(use-package yasnippet
+  :commands (yas-minor-mode yas-new-snippet)
+  :ensure t
+  :config
+  (yas-reload-all)
+  ;; We disable the default tab keyboard shortcut
+  (define-key yas-minor-mode-map (kbd "<tab>") nil)
+  (define-key yas-minor-mode-map (kbd "TAB") nil)
+  :general
+  (:keymaps 'snippet-mode-map
+    "<C-return>" 'yas-load-snippet-buffer-and-close)
+)
+(use-package ya-chain
+  :commands (ya-chain-mode)
+  :bind
+  (:map ya-chain-mode-map
+    ("<C-tab>" . chain-insert-template))
+)
     (defun my/touch-file (filename)
       "Create a file into the current directory"
       (interactive "sName of the file:")
@@ -551,7 +570,14 @@ Return a list with the contents of the table cell."
                          ))))
 (use-package ledger-mode
   :mode ("\\.dat\\'" . ledger-mode)
-  :ensure t)
+  :ensure t
+  :general
+  (:states '(normal visual)
+   :prefix application-leader-key
+   :keymaps 'ledger-mode-map
+     "=" 'ledger-mode-clean-buffer
+   )
+)
 (setq org-hide-leading-stars t) ;; Ensure that we hide the number of stars before the first one
 (setq org-startup-indented t) ;; Ensure we indent all the content
 (use-package org
@@ -568,10 +594,19 @@ Return a list with the contents of the table cell."
 (setq org-src-tab-acts-natively t)
 (use-package org
    :general
-   (:state '(insert normal visual)
+   (:states '(insert normal visual)
     :keymaps 'org-mode-map
     "M-h" 'org-metaleft
-    "M-l" 'org-metaright))
+    "M-l" 'org-metaright)
+   (:states '(normal visual)
+    :keymaps 'org-mode-map
+    :prefix application-leader-key
+    "l" 'org-toggle-latex-fragment)
+   :init
+   (setq org-preview-latex-default-process 'dvipng))
+(use-package org-drill
+  :ensure org-plus-contrib
+  :commands (org-drill-directory))
 (defun my/shell-open ()
   "Open a shell in root of project"
   (interactive)
@@ -878,6 +913,8 @@ current window."
   "RET" 'my/shell-open
   "a"  '(:ignore t :which-key "Applications")
   "aw" 'eww
+  "ad" 'org-drill-directory
+  "ay" 'yas-new-snippet
 
   ;; Inserts
   "i" '(:ignore t :which-key "Inserts")
@@ -887,7 +924,8 @@ current window."
 
 (general-define-key
   ";" 'evil-commentary
-  "/" 'swiper)
+  "/" 'swiper
+  "é" 'swiper)
 
 (general-define-key "`"
   (general-key-dispatch 'evil-goto-mark
@@ -912,18 +950,3 @@ current window."
     (insert (apply 'concat (reverse body-list)))
     (message (format "Wrote %d code blocks to init.el" (length body-list))))))
 
-(custom-set-variables
- ;; custom-set-variables was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- '(evil-want-Y-yank-to-eol t)
- '(package-selected-packages
-   (quote
-    (yasnippet eww-lnum org-bullets ledger-mode dired-ranger evil-surround yaml-mode which-key web-mode virtualenvwrapper use-package projectile org-plus-contrib magit linum-relative key-chord julia-mode hydra highlight-numbers highlight-indentation general flycheck fill-column-indicator evil-commentary counsel company-jedi))))
-(custom-set-faces
- ;; custom-set-faces was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- )
