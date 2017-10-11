@@ -75,14 +75,14 @@ ${20:$(downcase yas-test)}. ${  das}")
 
 (defun chain-increment-yas-fields (n template-str fields)
   "Increment the number for all yasnippet fields"
-  (if fields
+  (if (and template-str fields)
     (s-replace-all
      (--map
       (cons (nth 0 it) ;; the full expression
             (concat
              (nth 1 it) ;; The prefix
              (number-to-string (+ (string-to-number (nth 2 it)) n))
-             (nth 3 it))) ;; The last part or nil
+             (chain-increment-yas-fields n (nth 3 it) (chain-get-yas-fields (nth 3 it))))) ;; The last part or nil
       fields)
      template-str)
     ;; else
@@ -100,6 +100,11 @@ ${20:$(downcase yas-test)}. ${  das}")
             (chain-increment-yas-fields 2 "${20:$(downcase)}"
                                         (chain-get-yas-fields "${20:$(downcase)}"))
             "${22:$(downcase)}"))
+
+(cl-assert (equal
+            (chain-increment-yas-fields 2 "${2: $3}"
+                                        (chain-get-yas-fields "${2: $3}"))
+            "${4: $5}"))
 
 
 ;; Functions that will serve as my api
@@ -469,5 +474,4 @@ ${20:$(downcase yas-test)}. ${  das}")
   ;; The indicator for the mode line.
   " y-c"
   ;; The minor mode bindings.
-  '(((kbd "<C-tab>") . chain-insert-template))
   )
