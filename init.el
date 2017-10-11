@@ -1,3 +1,17 @@
+;; Utilities functions
+
+(defun my/tangle-init ()
+  "Tangle an init file while ignoring DISABLED headers and :tangle nil"
+  (let ((body-list ()) (output-file "~/.emacs.d/init.el"))
+    (org-babel-map-src-blocks "~/.emacs.d/init.org"
+      (add-to-list 'body-list (unless (string= (org-get-todo-state) "DISABLED") body)))
+    (with-temp-file output-file
+    (insert (apply 'concat (reverse body-list)))
+    (message (format "Wrote %d code blocks to init.el" (length body-list))))))
+
+  (eval-after-load "enriched"
+    '(defun enriched-decode-display-prop (start end &optional param)
+       (list start end)))
 ;; Initialize packages to install use-package
 (require 'package)
 (setq package-enable-at-startup nil)
@@ -183,14 +197,14 @@
   (--reduce-from (max acc (length it)) 15 candidates))
 
 (defun my/format-candidate (s)
-
  (let ((msg (concat
               (format "[%s] " (or (get-text-property 0 :symbol s)"_"))
-              (propertize company-prefix 'face 'ivy-minibuffer-match-face-2)
+              (when company-prefix (propertize company-prefix 'face 'ivy-minibuffer-match-face-2))
               (s-pad-right (- (1+ (my/max-candidate-length company-candidates)) (length company-prefix))
                 " "
                 (s-chop-prefix company-prefix s))
-              (propertize (s-truncate 50 (get-text-property 0 :description s)) 'face 'minibuffer-prompt)
+              (let ((text (s-truncate 50 (get-text-property 0 :description s))))
+              (when text (propertize text 'face 'minibuffer-prompt)))
               "\n")))
    (when (equal (nth company-selection company-candidates) s)
        (add-face-text-property 0 (length msg) 'highlight t msg)
@@ -205,9 +219,9 @@
   (message "")
 )
 (defun counsel-company-frontend (command)
-  (case command
-    (post-command (start-selection))
-    (hide (hide-ivy))))
+  (pcase command
+    (`post-command (start-selection))
+    (`hide (hide-ivy))))
 
 (use-package company
   :ensure t
@@ -270,9 +284,19 @@
 (setq custom-theme-directory "~/.emacs.d/themes")
 (setq custom-safe-themes t)
 (load-theme 'yesterday-glow t)
-;; Force initial frame to not have any minibuffer
-(setq initial-frame-alist '((name . "editor") (minibuffer . nil)))
-(add-to-list 'default-frame-alist '(minibuffer . nil))
+  ;; Force initial frame to not have any minibuffer
+  (setq initial-frame-alist '((name . "editor") (minibuffer . nil)))
+  (add-to-list 'default-frame-alist '(minibuffer . nil))
+
+  (defun endless/test ()
+    (interactive)
+    (let ((old (selected-frame)))
+    (let* ((mf (make-frame '((minibuffer . only))))
+           (mw (car (window-list mf t))))
+      ;; (delete-frame (selected-frame) t)
+      (setq default-minibuffer-frame mf)
+      (make-frame '((minibuffer . nil))))
+    (delete-frame old t)))
 
 (defun my/matchframe (frame)
   (when (equal "help" (frame-parameter frame 'name)) frame))
@@ -453,9 +477,10 @@
    (setq magit-commit-show-diff nil))
 
 (use-package smerge-mode
+   :ensure t
    :general
-  (:keymaps 'smerge-mode-map
-   :states '(normal visual)
+  (:states '(normal visual)
+   :keymaps 'smerge-mode-map
    :prefix application-leader-key
    "RET" 'smerge-keep-current
    "SPC" 'smerge-keep-other
@@ -463,7 +488,9 @@
    "a"   'smerge-keep-all
    "r"   'smerge-resolve
    "n"   'smerge-next
-   "N"   'smerge-prev))
+   "N"   'smerge-prev)
+   :init
+   (add-hook 'smerge-mode-hook #'evil-normalize-keymaps))
 (defun my/override-flycheck-fn ()
 (defconst flycheck-error-list-format
   `[("Line" 4 flycheck-error-list-entry-< :right-align t)
@@ -508,7 +535,7 @@ Return a list with the contents of the table cell."
              ("k" . flycheck-error-list-previous-error))
   :config
     (my/override-flycheck-fn)
-    (setq flycheck-check-syntax-automatically '(save new-line idle-change))
+    (setq flycheck-check-syntax-automatically '(save new-line idle-change mode-enabled))
     (setq flycheck-display-errors-delay 30)
   )
 
@@ -533,7 +560,7 @@ Return a list with the contents of the table cell."
   :commands (ya-chain-mode)
   :bind
   (:map ya-chain-mode-map
-    ("<C-tab>" . chain-insert-template))
+    ("<S-return>" . chain-insert-template))
 )
     (defun my/touch-file (filename)
       "Create a file into the current directory"
@@ -659,17 +686,48 @@ Return a list with the contents of the table cell."
 (use-package org-drill
   :ensure org-plus-contrib
   :commands (org-drill-directory))
+   ;; (defun my/executor (cmd)
+   ;;   "Execute a command in a subshell"
+   ;;   (interactive "sCommand to execute:")
+   ;;   (save-selected-window
+   ;;     (let ((frame (make-frame))
+   ;;           (buffer (generate-new-buffer "*commands*")))
+   ;;          (with-current-buffer buffer
+   ;;             ;; (display-buffer buffer '((display-buffer-reuse-window)) frame)
+   ;;             (comint-mode))))
+   ;;   (select-frame (window-frame (get-buffer-window))))
+
+        ;; (let ((process
+        ;;         (start-file-process-shell-command
+        ;;         "sub-process"
+        ;;         buffer
+        ;;         cmd)))
+        ;;     (set-process-sentinel process
+        ;;         (lambda (process event)
+        ;;             (message event))))))
+  ;; (set-process-filter process 'ansi-color-process-output)
+       ;; (if (equal event "open\n")
+       ;;   (when (get-buffer buf) (display-buffer buf t))
+       ;; (when (= 0 (process-exit-status process))
+       ;;   (let ((buf (process-buffer process)))
+       ;;     (when (get-buffer buf)
+       ;;       (display-buffer buf t)
+       ;;       (run-at-time "5 sec" nil (lambda (buffer)
+       ;;       (when (get-buffer buffer)
+       ;;       (delete-frame (window-frame (get-buffer-window buffer)))
+       ;;       (kill-buffer buffer))) buf)
+       ;;       )))))))
 (defun my/shell-open ()
   "Open a shell in root of project"
   (interactive)
    (let ((project-root (if (projectile-project-p) (projectile-project-root) "~")))
          (progn
            (message project-root)
-           (shell (generate-new-buffer-name "*shell*"))
-           (end-of-buffer)
+           (eshell (generate-new-buffer-name "*eshell*"))
+           (eshell-kill-input)
            (insert (concat "cd " project-root))
-           (comint-send-input)
-           (comint-clear-buffer)
+           (eshell-send-input)
+           (end-of-buffer)
            )))
 ;; Make ansi-term lazy-load
 (use-package shell
@@ -681,17 +739,50 @@ Return a list with the contents of the table cell."
 
 ;; For help buffers
 (add-to-list 'display-buffer-alist
-   '("^\\*[Ss]hell.*$" .
+   '("^\\*[Ee]shell.*$" .
        ((display-buffer-pop-up-frame)
         . ((pop-up-frame-parameters . ((name . "shell-terminal")
                                       (minibuffer . nil)
-                                      (unsplittable . t))
+                                     )
           ))
        )
     )
 )
 (add-hook 'shell-mode-hook 'ansi-color-for-comint-mode-on)
 (add-to-list 'comint-output-filter-functions 'ansi-color-process-output)
+(defvar-local endless/display-images t)
+
+(defun endless/toggle-image-display ()
+  "Toggle images display on current buffer."
+  (interactive)
+  (setq endless/display-images
+        (null endless/display-images))
+  (endless/backup-display-property endless/display-images))
+
+(defun endless/backup-display-property (invert &optional object)
+  "Move the 'display property at POS to 'display-backup.
+Only applies if display property is an image.
+If INVERT is non-nil, move from 'display-backup to 'display
+instead.
+Optional OBJECT specifies the string or buffer. Nil means current
+buffer."
+  (let* ((inhibit-read-only t)
+         (from (if invert 'display-backup 'display))
+         (to (if invert 'display 'display-backup))
+         (pos (point-min))
+         left prop)
+    (while (and pos (/= pos (point-max)))
+      (if (get-text-property pos from object)
+          (setq left pos)
+        (setq left (next-single-property-change pos from object)))
+      (if (or (null left) (= left (point-max)))
+          (setq pos nil)
+        (setq prop (get-text-property left from object))
+        (setq pos (or (next-single-property-change left from object)
+                      (point-max)))
+        (when (eq (car prop) 'image)
+          (add-text-properties left pos (list from nil to prop) object))))))
+
 (use-package eww-lnum
   :ensure t)
 
@@ -702,7 +793,9 @@ Return a list with the contents of the table cell."
            "r" 'eww-reload
            "<return>" 'eww-browse-with-external-browser
            "z" 'eww-readable
+           "ti" 'endless/toggle-image-display
            "v" 'eww-view-source
+           "g" 'eww
            "y" 'eww-copy-page-url
            "b" 'eww-add-bookmark)
   (:keymaps 'eww-mode-map
@@ -710,12 +803,12 @@ Return a list with the contents of the table cell."
    "<C-return>" 'eww-submit
    "f" 'eww-lnum-follow
    ";" 'eww-lnum-universal
-   "g" 'eww
    "b" 'eww-back-url
    "J" 'evil-scroll-down
    "K" 'evil-scroll-up
   )
   :config
+  (setq shr-color-visible-luminance-min 90)
   (setq eww-search-prefix "https://www.google.com/search?q="))
 
 ;; from magnars
@@ -744,6 +837,15 @@ Return a list with the contents of the table cell."
   "Go to the bookmark 'm'"
   (interactive)
   (evil-goto-mark ?m))
+
+(defun my/open-up-minibuffer ()
+"Open a new minibuffer frame"
+(interactive)
+(let ((my-minibuffer-window
+        (frame-selected-window (make-frame '((minibuffer . t))))))
+  (message my-minibuffer-window)
+  (set-minibuffer-window my-minibuffer-window)
+))
 
 (defun my/kill-other-buffers ()
   "Kill all other buffers"
@@ -856,6 +958,7 @@ current window."
          (flycheck-add-mode 'javascript-eslint 'web-mode)
          (message "JSX loaded")
          (set (make-local-variable 'company-backends) '(company-tern))
+         (tern-mode t)
          (company-mode t)
          (flycheck-mode t)
          (highlight-numbers-mode t)
@@ -881,6 +984,7 @@ current window."
     (lambda ()
       (progn
          (set (make-local-variable 'company-backends) '(company-tern))
+         (tern-mode t)
          (company-mode t)
          (flycheck-mode t)
          (highlight-numbers-mode t)
@@ -896,6 +1000,26 @@ current window."
   :commands (company-tern)
 )
 
+(defun my/eslint-format ()
+  (interactive)
+  (save-excursion
+    (let ((cmd (if (projectile-project-p)
+           (concat (projectile-project-root) "node_modules/eslint/bin/eslint.js")
+           (if (executable-find "eslint") "eslint" (user-error "No eslint on the system"))
+           )))
+      (save-buffer)
+      (call-process cmd nil "*ESLint Errors*" nil "--fix" buffer-file-name)
+      (revert-buffer t t)
+)))
+(require 'dash)
+(require 's)
+(defun my/react-eval-props (props)
+  (s-join "\n" (-keep
+    (lambda (line)
+            (unless (s-contains? "isRequired" line)
+              (when (s-contains? ":" line)
+                (s-concat (s-left (1+ (s-index-of ":" line)) line) "'',"))))
+  (split-string props "\n"))))
 (use-package conf-mode
   :mode "\\.pylintrc\\'")
 (use-package android-mode
@@ -962,6 +1086,7 @@ current window."
   "wd" 'delete-other-windows
   "wc" 'delete-other-windows
   "wa" 'make-frame-command
+  "wb" 'my/open-up-minibuffer
 
   ;; Error management
   "e"  '(:ignore t :which-key "Errors")
@@ -1006,13 +1131,5 @@ current window."
   "zz" 'evil-toggle-fold)
 
 (add-hook 'prog-mode-hook 'fci-mode)
-;; Utilities functions
-
-(defun my/tangle-init ()
-  "Tangle an init file while ignoring DISABLED headers and :tangle nil"
-  (let ((body-list ()) (output-file "~/.emacs.d/init.el"))
-    (org-babel-map-src-blocks "~/.emacs.d/init.org"
-      (add-to-list 'body-list (unless (string= (org-get-todo-state) "DISABLED") body)))
-    (with-temp-file output-file
-    (insert (apply 'concat (reverse body-list)))
-    (message (format "Wrote %d code blocks to init.el" (length body-list))))))
+(add-hook 'prog-mode-hook 'ya-chain-mode)
+(add-hook 'prog-mode-hook 'yas-minor-mode)

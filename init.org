@@ -1,6 +1,28 @@
 #+STARTUP: overview
 #+TODO: TODO DISABLED | ENABLED
 #+PROPERTY: header-args:emacs-lisp :tangle yes
+* A. Elisp utilities
+This function is called by the save hook on init.org to trigger automatically a tangling
+
+#+BEGIN_SRC emacs-lisp
+;; Utilities functions
+
+(defun my/tangle-init ()
+  "Tangle an init file while ignoring DISABLED headers and :tangle nil"
+  (let ((body-list ()) (output-file "~/.emacs.d/init.el"))
+    (org-babel-map-src-blocks "~/.emacs.d/init.org"
+      (add-to-list 'body-list (unless (string= (org-get-todo-state) "DISABLED") body)))
+    (with-temp-file output-file
+    (insert (apply 'concat (reverse body-list)))
+    (message (format "Wrote %d code blocks to init.el" (length body-list))))))
+
+#+END_SRC
+* B. Security fixes
+#+BEGIN_SRC emacs-lisp
+  (eval-after-load "enriched"
+    '(defun enriched-decode-display-prop (start end &optional param)
+       (list start end)))
+#+END_SRC
 * 1. Package management & installations
 Regroupment of the package manager
 
@@ -329,14 +351,14 @@ a custome company frontend
   (--reduce-from (max acc (length it)) 15 candidates))
 
 (defun my/format-candidate (s)
-
  (let ((msg (concat
               (format "[%s] " (or (get-text-property 0 :symbol s)"_"))
-              (propertize company-prefix 'face 'ivy-minibuffer-match-face-2)
+              (when company-prefix (propertize company-prefix 'face 'ivy-minibuffer-match-face-2))
               (s-pad-right (- (1+ (my/max-candidate-length company-candidates)) (length company-prefix))
                 " "
                 (s-chop-prefix company-prefix s))
-              (propertize (s-truncate 50 (get-text-property 0 :description s)) 'face 'minibuffer-prompt)
+              (let ((text (s-truncate 50 (get-text-property 0 :description s))))
+              (when text (propertize text 'face 'minibuffer-prompt)))
               "\n")))
    (when (equal (nth company-selection company-candidates) s)
        (add-face-text-property 0 (length msg) 'highlight t msg)
@@ -351,9 +373,9 @@ a custome company frontend
   (message "")
 )
 (defun counsel-company-frontend (command)
-  (case command
-    (post-command (start-selection))
-    (hide (hide-ivy))))
+  (pcase command
+    (`post-command (start-selection))
+    (`hide (hide-ivy))))
 
 #+END_SRC
 *** Installation and configuration
@@ -376,7 +398,7 @@ Ideally we would not need both.
   (setq company-require-match 'never))
 
 #+END_SRC
-*** IEdit
+** IEdit
 Iedit allows to edit multiple region of a same symbol
 [[https://github.com/victorhge/iedit][Project homepage]]
 
@@ -486,9 +508,19 @@ Mode to highlight numbers in the actual buffer
 Preferences and configurations linked to window management
 *** Make minibuffer a separate frame
 #+BEGIN_SRC emacs-lisp
-;; Force initial frame to not have any minibuffer
-(setq initial-frame-alist '((name . "editor") (minibuffer . nil)))
-(add-to-list 'default-frame-alist '(minibuffer . nil))
+  ;; Force initial frame to not have any minibuffer
+  (setq initial-frame-alist '((name . "editor") (minibuffer . nil)))
+  (add-to-list 'default-frame-alist '(minibuffer . nil))
+
+  (defun endless/test ()
+    (interactive)
+    (let ((old (selected-frame)))
+    (let* ((mf (make-frame '((minibuffer . only))))
+           (mw (car (window-list mf t))))
+      ;; (delete-frame (selected-frame) t)
+      (setq default-minibuffer-frame mf)
+      (make-frame '((minibuffer . nil))))
+    (delete-frame old t)))
 
 #+END_SRC
 *** Make helps and messages into separate frame
@@ -758,9 +790,10 @@ Smerge is the mode to merge two files from git.
 *** Configuration
 #+BEGIN_SRC emacs-lisp
 (use-package smerge-mode
+   :ensure t
    :general
-  (:keymaps 'smerge-mode-map
-   :states '(normal visual)
+  (:states '(normal visual)
+   :keymaps 'smerge-mode-map
    :prefix application-leader-key
    "RET" 'smerge-keep-current
    "SPC" 'smerge-keep-other
@@ -768,7 +801,9 @@ Smerge is the mode to merge two files from git.
    "a"   'smerge-keep-all
    "r"   'smerge-resolve
    "n"   'smerge-next
-   "N"   'smerge-prev))
+   "N"   'smerge-prev)
+   :init
+   (add-hook 'smerge-mode-hook #'evil-normalize-keymaps))
 #+END_SRC
 * 6. Error & Compilation
 In this section, we have everything pertaining to syntax error highlighting and
@@ -825,7 +860,7 @@ Flycheck is the best package (compared to flymake) for syntax checking.
              ("k" . flycheck-error-list-previous-error))
   :config
     (my/override-flycheck-fn)
-    (setq flycheck-check-syntax-automatically '(save new-line idle-change))
+    (setq flycheck-check-syntax-automatically '(save new-line idle-change mode-enabled))
     (setq flycheck-display-errors-delay 30)
   )
 
@@ -872,10 +907,9 @@ Custom plugin
   :commands (ya-chain-mode)
   :bind
   (:map ya-chain-mode-map
-    ("<C-tab>" . chain-insert-template))
+    ("<S-return>" . chain-insert-template))
 )
 #+END_SRC
-
 
 ** Directory manager
 Configuration of dired
@@ -1082,11 +1116,11 @@ autocloses on exit status
    (let ((project-root (if (projectile-project-p) (projectile-project-root) "~")))
          (progn
            (message project-root)
-           (shell (generate-new-buffer-name "*shell*"))
-           (end-of-buffer)
+           (eshell (generate-new-buffer-name "*eshell*"))
+           (eshell-kill-input)
            (insert (concat "cd " project-root))
-           (comint-send-input)
-           (comint-clear-buffer)
+           (eshell-send-input)
+           (end-of-buffer)
            )))
 #+END_SRC
 
@@ -1105,11 +1139,11 @@ Ensures that the ansi-terminal spawns in a new frame
 
 ;; For help buffers
 (add-to-list 'display-buffer-alist
-   '("^\\*[Ss]hell.*$" .
+   '("^\\*[Ee]shell.*$" .
        ((display-buffer-pop-up-frame)
         . ((pop-up-frame-parameters . ((name . "shell-terminal")
                                       (minibuffer . nil)
-                                      (unsplittable . t))
+                                     )
           ))
        )
     )
@@ -1124,6 +1158,39 @@ Add ansi colors to comint shell outputs!
 ** EWW (Web browsing)
 Installs and configures EWW for web browsing
 #+BEGIN_SRC emacs-lisp
+(defvar-local endless/display-images t)
+
+(defun endless/toggle-image-display ()
+  "Toggle images display on current buffer."
+  (interactive)
+  (setq endless/display-images
+        (null endless/display-images))
+  (endless/backup-display-property endless/display-images))
+
+(defun endless/backup-display-property (invert &optional object)
+  "Move the 'display property at POS to 'display-backup.
+Only applies if display property is an image.
+If INVERT is non-nil, move from 'display-backup to 'display
+instead.
+Optional OBJECT specifies the string or buffer. Nil means current
+buffer."
+  (let* ((inhibit-read-only t)
+         (from (if invert 'display-backup 'display))
+         (to (if invert 'display 'display-backup))
+         (pos (point-min))
+         left prop)
+    (while (and pos (/= pos (point-max)))
+      (if (get-text-property pos from object)
+          (setq left pos)
+        (setq left (next-single-property-change pos from object)))
+      (if (or (null left) (= left (point-max)))
+          (setq pos nil)
+        (setq prop (get-text-property left from object))
+        (setq pos (or (next-single-property-change left from object)
+                      (point-max)))
+        (when (eq (car prop) 'image)
+          (add-text-properties left pos (list from nil to prop) object))))))
+
 (use-package eww-lnum
   :ensure t)
 
@@ -1134,7 +1201,9 @@ Installs and configures EWW for web browsing
            "r" 'eww-reload
            "<return>" 'eww-browse-with-external-browser
            "z" 'eww-readable
+           "ti" 'endless/toggle-image-display
            "v" 'eww-view-source
+           "g" 'eww
            "y" 'eww-copy-page-url
            "b" 'eww-add-bookmark)
   (:keymaps 'eww-mode-map
@@ -1142,12 +1211,12 @@ Installs and configures EWW for web browsing
    "<C-return>" 'eww-submit
    "f" 'eww-lnum-follow
    ";" 'eww-lnum-universal
-   "g" 'eww
    "b" 'eww-back-url
    "J" 'evil-scroll-down
    "K" 'evil-scroll-up
   )
   :config
+  (setq shr-color-visible-luminance-min 90)
   (setq eww-search-prefix "https://www.google.com/search?q="))
 
 #+END_SRC
@@ -1193,7 +1262,19 @@ Adds a function to go to a default bookmark (m) in this case
 #+END_SRC
 ** Buffers
 Functions and tools for buffer management
+*** Make minibuffer frame
+Elisp function to spawn a new minibuffer frame
+#+BEGIN_SRC emacs-lisp
+(defun my/open-up-minibuffer ()
+"Open a new minibuffer frame"
+(interactive)
+(let ((my-minibuffer-window
+        (frame-selected-window (make-frame '((minibuffer . t))))))
+  (message my-minibuffer-window)
+  (set-minibuffer-window my-minibuffer-window)
+))
 
+#+END_SRC
 *** Kill all buffers
 Elisp function to kill all other opened buffers
 
@@ -1344,6 +1425,7 @@ Sets up web mode for html and django editing
          (flycheck-add-mode 'javascript-eslint 'web-mode)
          (message "JSX loaded")
          (set (make-local-variable 'company-backends) '(company-tern))
+         (tern-mode t)
          (company-mode t)
          (flycheck-mode t)
          (highlight-numbers-mode t)
@@ -1373,6 +1455,7 @@ Sets up web mode for html and django editing
     (lambda ()
       (progn
          (set (make-local-variable 'company-backends) '(company-tern))
+         (tern-mode t)
          (company-mode t)
          (flycheck-mode t)
          (highlight-numbers-mode t)
@@ -1394,6 +1477,32 @@ Sets up web mode for html and django editing
   :commands (company-tern)
 )
 
+#+END_SRC
+*** Autoformat with eslint
+#+BEGIN_SRC emacs-lisp
+(defun my/eslint-format ()
+  (interactive)
+  (save-excursion
+    (let ((cmd (if (projectile-project-p)
+           (concat (projectile-project-root) "node_modules/eslint/bin/eslint.js")
+           (if (executable-find "eslint") "eslint" (user-error "No eslint on the system"))
+           )))
+      (save-buffer)
+      (call-process cmd nil "*ESLint Errors*" nil "--fix" buffer-file-name)
+      (revert-buffer t t)
+)))
+#+END_SRC
+*** React utilities
+#+BEGIN_SRC emacs-lisp
+(require 'dash)
+(require 's)
+(defun my/react-eval-props (props)
+  (s-join "\n" (-keep
+    (lambda (line)
+            (unless (s-contains? "isRequired" line)
+              (when (s-contains? ":" line)
+                (s-concat (s-left (1+ (s-index-of ":" line)) line) "'',"))))
+  (split-string props "\n"))))
 #+END_SRC
 ** TODO CSS
 ** TODO JSON
@@ -1499,6 +1608,7 @@ Every key under the leader key should be defined here
   "wd" 'delete-other-windows
   "wc" 'delete-other-windows
   "wa" 'make-frame-command
+  "wb" 'my/open-up-minibuffer
 
   ;; Error management
   "e"  '(:ignore t :which-key "Errors")
@@ -1516,13 +1626,9 @@ Every key under the leader key should be defined here
   "RET" 'my/shell-open
   "a"  '(:ignore t :which-key "Applications")
   "aw" 'eww
-<<<<<<< HEAD
   "ac" 'calculator
   "ad" 'dired-jump
-=======
-  "ad" 'org-drill-directory
   "ay" 'yas-new-snippet
->>>>>>> c9acdc4ec52848baddec9c2e25d90d9452ba9593
 
   ;; Inserts
   "i" '(:ignore t :which-key "Inserts")
@@ -1556,22 +1662,8 @@ Annex to regroup all automatic hooks that affect multiple modes
 ** Prog-mode hook
 #+BEGIN_SRC emacs-lisp
 (add-hook 'prog-mode-hook 'fci-mode)
-#+END_SRC
-* C. Elisp utilities
-This function is called by the save hook on init.org to trigger automatically a tangling
-
-#+BEGIN_SRC emacs-lisp
-;; Utilities functions
-
-(defun my/tangle-init ()
-  "Tangle an init file while ignoring DISABLED headers and :tangle nil"
-  (let ((body-list ()) (output-file "~/.emacs.d/init.el"))
-    (org-babel-map-src-blocks "~/.emacs.d/init.org"
-      (add-to-list 'body-list (unless (string= (org-get-todo-state) "DISABLED") body)))
-    (with-temp-file output-file
-    (insert (apply 'concat (reverse body-list)))
-    (message (format "Wrote %d code blocks to init.el" (length body-list))))))
-
+(add-hook 'prog-mode-hook 'ya-chain-mode)
+(add-hook 'prog-mode-hook 'yas-minor-mode)
 #+END_SRC
 * D. Tangle this file
 This small bits of code allow to execute some code
