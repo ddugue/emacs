@@ -143,6 +143,9 @@
    `(highlight-indentation-face ((,class (:background ,even-less-dark))))
    `(highlight-indentation-current-column-face ((,class (:background ,light))))
 
+   ;; EWW
+   `(eww-form-text ((,class (:background ,background :foreground ,light-orange :box 1))))
+
    ;; Terminal
    `(term-color-yellow ((,class (:foreground ,yellow))))
    `(term-color-green ((,class (:foreground ,lime))))
