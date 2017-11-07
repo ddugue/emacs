@@ -679,7 +679,39 @@ We enable it globally.
     (which-key-mode 1))
 
 #+END_SRC
+** Search FN
 
+#+BEGIN_SRC emacs-lisp
+;; Configuration and installation of which-key
+(defun counsel-custom-search-function (string base-cmd)
+  "Grep in the current directory for STRING using BASE-CMD.
+If non-nil, append EXTRA-AG-ARGS to BASE-CMD."
+  (if (< (length string) 4)
+      (counsel-more-chars 4)
+    (let ((regex (counsel-unquote-regex-parens
+                  (setq ivy--old-re
+                        (ivy--regex string)))))
+      (let* ((ag-cmd (format base-cmd string)))
+        (counsel--async-command ag-cmd)
+        nil))))
+
+(defun counsel-custom-search (&optional initial-input)
+  "Grep for a string in the current directory using ag."
+  (interactive)
+  (ivy-set-prompt 'counsel-custom-search counsel-prompt-function)
+  (ivy-read "Search: "
+            (lambda (string)
+              (counsel-custom-search-function string "/home/ddugue/bin/search %s"))
+            :initial-input initial-input
+            :dynamic-collection t
+            :keymap counsel-ag-map
+            :history 'counsel-git-grep-history
+            :action #'counsel-git-grep-action
+            :unwind (lambda ()
+                      (counsel-delete-process)
+                      (swiper--cleanup))
+            :caller 'counsel-custom-search))
+#+END_SRC
 * 5. Project management & git
 In this section everything related to a project management or git tools.
 Usually project get detected based on the root of the project which is where

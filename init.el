@@ -404,6 +404,35 @@
     (which-key-setup-minibuffer)
     (which-key-mode 1))
 
+;; Configuration and installation of which-key
+(defun counsel-custom-search-function (string base-cmd)
+  "Grep in the current directory for STRING using BASE-CMD.
+If non-nil, append EXTRA-AG-ARGS to BASE-CMD."
+  (if (< (length string) 4)
+      (counsel-more-chars 4)
+    (let ((regex (counsel-unquote-regex-parens
+                  (setq ivy--old-re
+                        (ivy--regex string)))))
+      (let* ((ag-cmd (format base-cmd string)))
+        (counsel--async-command ag-cmd)
+        nil))))
+
+(defun counsel-custom-search (&optional initial-input)
+  "Grep for a string in the current directory using ag."
+  (interactive)
+  (ivy-set-prompt 'counsel-custom-search counsel-prompt-function)
+  (ivy-read "Search: "
+            (lambda (string)
+              (counsel-custom-search-function string "/home/ddugue/bin/search %s"))
+            :initial-input initial-input
+            :dynamic-collection t
+            :keymap counsel-ag-map
+            :history 'counsel-git-grep-history
+            :action #'counsel-git-grep-action
+            :unwind (lambda ()
+                      (counsel-delete-process)
+                      (swiper--cleanup))
+            :caller 'counsel-custom-search))
 ;; Install projectile
 (use-package projectile
   :ensure t
@@ -1133,3 +1162,18 @@ current window."
 (add-hook 'prog-mode-hook 'fci-mode)
 (add-hook 'prog-mode-hook 'ya-chain-mode)
 (add-hook 'prog-mode-hook 'yas-minor-mode)
+(custom-set-variables
+ ;; custom-set-variables was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ '(evil-want-Y-yank-to-eol t)
+ '(package-selected-packages
+   (quote
+    (markdown-mode yasnippet yaml-mode which-key web-mode virtualenvwrapper use-package tup-mode org-plus-contrib org-bullets oneonone magit linum-relative ledger-mode key-chord julia-mode js2-mode jade-mode ivy-hydra iedit highlight-numbers helm haskell-mode ggtags general flycheck fill-column-indicator eww-lnum evil-surround evil-commentary dired-ranger counsel-projectile company-tern company-jedi column-marker android-mode))))
+(custom-set-faces
+ ;; custom-set-faces was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ )
