@@ -1583,6 +1583,15 @@ haskell is a pure functional programming language. You can read more on [[https:
   :ensure t
   :mode ("\\.hs\\'" . haskell-mode))
 #+END_SRC
+** Elixir
+Elixir is ruby-like language built on top of the Erlang VM (EVM).
+*** Alchemist
+Provide multiple tools for elixir development
+#+BEGIN_SRC emacs-lisp
+(use-package alchemist
+  :ensure t
+  :mode ("\\.ex[s]?\\'" . elixir-mode))
+#+END_SRC
 * A. Global keyboard mapping
 Annex to regroup all keyboard mappings
 

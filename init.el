@@ -1070,6 +1070,9 @@ current window."
 (use-package haskell-mode
   :ensure t
   :mode ("\\.hs\\'" . haskell-mode))
+(use-package alchemist
+  :ensure t
+  :mode ("\\.ex[s]?\\'" . elixir-mode))
 (global-unset-key (kbd "C-SPC"))
 
 ;; leader key prefix shortcuts
@@ -1162,18 +1165,3 @@ current window."
 (add-hook 'prog-mode-hook 'fci-mode)
 (add-hook 'prog-mode-hook 'ya-chain-mode)
 (add-hook 'prog-mode-hook 'yas-minor-mode)
-(custom-set-variables
- ;; custom-set-variables was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- '(evil-want-Y-yank-to-eol t)
- '(package-selected-packages
-   (quote
-    (markdown-mode yasnippet yaml-mode which-key web-mode virtualenvwrapper use-package tup-mode org-plus-contrib org-bullets oneonone magit linum-relative ledger-mode key-chord julia-mode js2-mode jade-mode ivy-hydra iedit highlight-numbers helm haskell-mode ggtags general flycheck fill-column-indicator eww-lnum evil-surround evil-commentary dired-ranger counsel-projectile company-tern company-jedi column-marker android-mode))))
-(custom-set-faces
- ;; custom-set-faces was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- )
