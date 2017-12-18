@@ -947,6 +947,16 @@ Custom plugin
 Configuration of dired
 TODO: Make better integration
 #+BEGIN_SRC emacs-lisp
+  (defun prelude-copy-file-name-to-clipboard ()
+    "Copy the current buffer file name to the clipboard."
+    (interactive)
+    (let ((filename (if (equal major-mode 'dired-mode)
+                      default-directory
+                    (buffer-file-name))))
+      (when filename
+        (kill-new filename)
+        (message "Copied buffer file name '%s' to the clipboard." filename))))
+
     (defun my/touch-file (filename)
       "Create a file into the current directory"
       (interactive "sName of the file:")
@@ -1638,6 +1648,7 @@ Every key under the leader key should be defined here
   "fl" 'counsel-locate
   "f!" 'spacemacs/sudo-edit
   "fs" 'save-buffer
+  "fy" 'prelude-copy-file-name-to-clipboard
 
   ;; Editor
   "E"  '(:ignore t :which-key "Editor")

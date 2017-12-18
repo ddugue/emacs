@@ -591,6 +591,16 @@ Return a list with the contents of the table cell."
   (:map ya-chain-mode-map
     ("<S-return>" . chain-insert-template))
 )
+  (defun prelude-copy-file-name-to-clipboard ()
+    "Copy the current buffer file name to the clipboard."
+    (interactive)
+    (let ((filename (if (equal major-mode 'dired-mode)
+                      default-directory
+                    (buffer-file-name))))
+      (when filename
+        (kill-new filename)
+        (message "Copied buffer file name '%s' to the clipboard." filename))))
+
     (defun my/touch-file (filename)
       "Create a file into the current directory"
       (interactive "sName of the file:")
@@ -1107,6 +1117,7 @@ current window."
   "fl" 'counsel-locate
   "f!" 'spacemacs/sudo-edit
   "fs" 'save-buffer
+  "fy" 'prelude-copy-file-name-to-clipboard
 
   ;; Editor
   "E"  '(:ignore t :which-key "Editor")
