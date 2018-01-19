@@ -199,6 +199,8 @@ Enable key-chord globally so we can easily easily espace insert mode
 
 (key-chord-mode 1)
 (key-chord-define evil-insert-state-map "jk" 'evil-normal-state)
+(key-chord-define evil-insert-state-map "ht" 'evil-normal-state)
+(key-chord-define evil-replace-state-map "ht" 'evil-normal-state)
 (key-chord-define evil-replace-state-map "jk" 'evil-normal-state)
 
 #+END_SRC
@@ -277,7 +279,13 @@ We configure and install ivy, which is the Engine
     ("C-k" . ivy-previous-line)
     ("C-l" . ivy-alt-done)
     ("<C-return>" . ivy-immediate-done)
-    ("C-h" . ivy-backward-kill-word))
+    ("C-S-T" . ivy-scroll-down-command)
+    ("C-t" . ivy-next-line)
+    ("C-S-H" . ivy-scroll-up-command)
+    ("C-h" . ivy-previous-line)
+    ("C-s" . ivy-alt-done)
+    ("<C-return>" . ivy-immediate-done)
+    ("C-n" . ivy-backward-kill-word))
   :init
   (progn
     ;; Set default regex matching
@@ -286,7 +294,7 @@ We configure and install ivy, which is the Engine
             (counsel-find-file . ivy--regex-fuzzy)
             (t . ivy--regex-plus)))
     (setq ivy-wrap t)
-    ;; Remove ../ and ./ from files selection t)
+    ;; Remove ../ and ./ from files selection t
     (setq ivy-extra-directories nil)
     (setq ivy-height 25)
     ;; Enable globally
@@ -306,6 +314,21 @@ We configure and install ivy, which is the Engine
                                 ("k" ivy-previous-line "up")
                                 ("l" ivy-alt-done "forward")
                                 ("h" ivy-backward-kill-word "back")
+                                ("y" my/ivy-append-yank "yank")
+                                ("m" my/ivy-mark "mark")
+                                ("Y" my/ivy-override-yank "override")
+                                ("i" nil "insert")))
+        (key-chord-define ivy-minibuffer-map "ht"
+                      (defhydra hydra-ivy/body
+                                (:post (when
+                                   (get-register 300)
+                                   (kill-new (get-register 300))
+                                   (set-register 300 nil)))
+                                "ivy"
+                                ("j" ivy-next-line "up")
+                                ("k" ivy-previous-line "down")
+                                ("s" ivy-alt-done "forward")
+                                ("n" ivy-backward-kill-word "back")
                                 ("y" my/ivy-append-yank "yank")
                                 ("m" my/ivy-mark "mark")
                                 ("Y" my/ivy-override-yank "override")
@@ -786,6 +809,10 @@ Magit is the package to manage git repo
    "k" 'magit-section-backward
    "J" 'magit-section-forward-sibling
    "K" 'magit-section-backward-sibling
+   "t" 'magit-section-forward
+   "h" 'magit-section-backward
+   "T" 'magit-section-forward-sibling
+   "H" 'magit-section-backward-sibling
    "v" 'evil-magit/toggle
    "zz" 'magit-section-toggle
    "d" 'magit-discard
@@ -889,7 +916,9 @@ Flycheck is the best package (compared to flymake) for syntax checking.
   :bind
     (:map flycheck-error-list-mode-map
              ("j" . flycheck-error-list-next-error)
-             ("k" . flycheck-error-list-previous-error))
+             ("k" . flycheck-error-list-previous-error)
+             ("t" . flycheck-error-list-next-error)
+             ("h" . flycheck-error-list-previous-error))
   :config
     (my/override-flycheck-fn)
     (setq flycheck-check-syntax-automatically '(save new-line idle-change mode-enabled))
@@ -1256,6 +1285,8 @@ buffer."
    "b" 'eww-back-url
    "J" 'evil-scroll-down
    "K" 'evil-scroll-up
+   "T" 'evil-scroll-down
+   "H" 'evil-scroll-up
   )
   :config
   (setq shr-color-visible-luminance-min 90)
@@ -1385,6 +1416,24 @@ Calculator for quick computation (uses RPN notation in calc-mode)
 
 )
 #+END_SRC
+** Diff mode
+Diff mode allows you to compare two files and apply the differences
+between them
+
+#+BEGIN_SRC emacs-lisp
+(use-package diff
+  :general
+  (:states '(normal visual)
+   :keymaps 'diff-mode-map
+   :prefix application-leader-key
+   "n" 'diff-hunk-next
+   "<return>" 'diff-apply-hunk
+   )
+  )
+#+END_SRC
+
+
+
 * 8. Programming languages & environment
 In this section we regrouped the different programming languages environment and
 their corresponding tools.
@@ -1479,7 +1528,8 @@ Sets up web mode for html and django editing
   (:keymaps 'web-mode-map
    :states '(normal)
    :prefix application-leader-key
-   "=" 'web-mode-buffer-indent))
+   "=" 'web-mode-buffer-indent
+   "r" 'my/eslint-format))
 #+END_SRC
 ** Javascript
 *** JS2-Mode
@@ -1487,6 +1537,11 @@ Sets up web mode for html and django editing
 (use-package js2-mode
   :ensure t
   :mode ("\\.js\\'" . js2-mode)
+  :general
+  (:states '(normal visual)
+   :keymaps 'js2-mode-map
+   :prefix application-leader-key
+   "r" 'my/eslint-format)
   :config
   (add-to-list 'company-backends 'company-tern)
 
@@ -1602,6 +1657,15 @@ Provide multiple tools for elixir development
   :ensure t
   :mode ("\\.ex[s]?\\'" . elixir-mode))
 #+END_SRC
+
+* 9. Dvorak
+#+BEGIN_SRC emacs-lisp
+(use-package evil-dvorak
+  :ensure t
+  :config
+  (global-evil-dvorak-mode 1)
+)
+#+END_SRC
 * A. Global keyboard mapping
 Annex to regroup all keyboard mappings
 
@@ -1681,6 +1745,7 @@ Every key under the leader key should be defined here
   "ac" 'calculator
   "ad" 'dired-jump
   "ay" 'yas-new-snippet
+  "a=" 'diff
 
   ;; Inserts
   "i" '(:ignore t :which-key "Inserts")
