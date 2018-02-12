@@ -34,25 +34,58 @@
 
 (setq use-package-verbose t) ;; Show loaded packages in *messages*
 
-;; Install evil only if it's not there
-(unless (package-installed-p 'evil)
-   (package-refresh-contents)
-   (package-install 'evil))
+  ;; Install evil only if it's not there
+  (unless (package-installed-p 'evil)
+     (package-refresh-contents)
+     (package-install 'evil))
 
-;; Enable evil globally
-(require 'evil)
-(evil-mode 1)
+  (unless (package-installed-p 'evil-dvorak)
+     (package-refresh-contents)
+     (package-install 'evil-dvorak))
 
-;; Unsetting some default evil commands, that I
-;; plan to use
-(require 'evil)
-(evil-mode 1)
+  ;; Enable evil globally
+  (require 'evil)
+  (evil-mode 1)
+  ;; (require 'evil-dvorak)
+  ;; (global-evil-dvorak-mode 1)
 
-(define-key evil-motion-state-map (kbd "SPC") nil)
-(define-key evil-motion-state-map "," nil)
-(define-key evil-motion-state-map "zz" nil)
-(define-key evil-motion-state-map "za" nil)
-(define-key evil-normal-state-map (kbd "g,") nil)
+       ;; Unsetting some default evil commands, that I
+       ;; plan to use
+       (require 'evil)
+       (evil-mode 1)
+
+       (define-key evil-motion-state-map (kbd "SPC") nil)
+       (define-key evil-motion-state-map "," nil)
+       (define-key evil-motion-state-map "zz" nil)
+       (define-key evil-motion-state-map "za" nil)
+
+       (define-key evil-motion-state-map "h" 'evil-previous-line)
+       (define-key evil-motion-state-map "t" 'evil-next-line)
+       (define-key evil-motion-state-map "n" 'evil-backward-char)
+       (define-key evil-motion-state-map "s" 'evil-forward-char)
+
+       (define-key evil-normal-state-map "J" 'join-line)
+       (define-key evil-normal-state-map "s" 'evil-forward-char)
+       (define-key evil-normal-state-map "j" #'(lambda () (interactive) "join this line at the end of the line below" (join-line 1)))
+
+       ;; (define-key evil-visual-state-map "h" 'evil-previous-line)
+       ;; (define-key evil-visual-state-map "t" 'evil-next-line)
+       ;; (define-key evil-visual-state-map "n" 'evil-backward-char)
+       ;; (define-key evil-visual-state-map "s" 'evil-forward-char)
+     ;; (define-key evil-normal-state-map "\C-d" 'evil-delete-char)
+     ;; (define-key evil-insert-state-map "\C-d" 'evil-delete-char)
+     ;; (define-key evil-visual-state-map "\C-d" 'evil-delete-char)
+     ;; (define-key evil-visual-state-map "\M-x" 'execute-extended-command)
+     ;; (define-key evil-insert-state-map "\M-x" 'execute-extended-command)
+
+       (define-key evil-insert-state-map (kbd "C-d") 'evil-delete-backward-char)
+       (define-key evil-normal-state-map (kbd "g,") nil)
+
+   ;; (evil-define-key 'insert evil-dvorak-mode-map
+   ;;     (kbd "C-d") 'evil-delete-backward-char)
+  ;; (evil-define-key 'insert evil-dvorak-mode-map
+    ;;   (kbd "M-x") 'execute-extended-command)
+
 
 (use-package evil-commentary
     :ensure t
@@ -87,6 +120,8 @@
 
 (key-chord-mode 1)
 (key-chord-define evil-insert-state-map "jk" 'evil-normal-state)
+(key-chord-define evil-insert-state-map "ht" 'evil-normal-state)
+(key-chord-define evil-replace-state-map "ht" 'evil-normal-state)
 (key-chord-define evil-replace-state-map "jk" 'evil-normal-state)
 
 ;; Install hydra only if it's not there
@@ -135,7 +170,13 @@
     ("C-k" . ivy-previous-line)
     ("C-l" . ivy-alt-done)
     ("<C-return>" . ivy-immediate-done)
-    ("C-h" . ivy-backward-kill-word))
+    ("C-S-T" . ivy-scroll-down-command)
+    ("C-t" . ivy-next-line)
+    ("C-S-H" . ivy-scroll-up-command)
+    ("C-h" . ivy-previous-line)
+    ("C-s" . ivy-alt-done)
+    ("<C-return>" . ivy-immediate-done)
+    ("C-n" . ivy-backward-kill-word))
   :init
   (progn
     ;; Set default regex matching
@@ -144,7 +185,7 @@
             (counsel-find-file . ivy--regex-fuzzy)
             (t . ivy--regex-plus)))
     (setq ivy-wrap t)
-    ;; Remove ../ and ./ from files selection t)
+    ;; Remove ../ and ./ from files selection t
     (setq ivy-extra-directories nil)
     (setq ivy-height 25)
     ;; Enable globally
@@ -164,6 +205,21 @@
                                 ("k" ivy-previous-line "up")
                                 ("l" ivy-alt-done "forward")
                                 ("h" ivy-backward-kill-word "back")
+                                ("y" my/ivy-append-yank "yank")
+                                ("m" my/ivy-mark "mark")
+                                ("Y" my/ivy-override-yank "override")
+                                ("i" nil "insert")))
+        (key-chord-define ivy-minibuffer-map "ht"
+                      (defhydra hydra-ivy/body
+                                (:post (when
+                                   (get-register 300)
+                                   (kill-new (get-register 300))
+                                   (set-register 300 nil)))
+                                "ivy"
+                                ("j" ivy-next-line "up")
+                                ("k" ivy-previous-line "down")
+                                ("s" ivy-alt-done "forward")
+                                ("n" ivy-backward-kill-word "back")
                                 ("y" my/ivy-append-yank "yank")
                                 ("m" my/ivy-mark "mark")
                                 ("Y" my/ivy-override-yank "override")
@@ -476,6 +532,10 @@ If non-nil, append EXTRA-AG-ARGS to BASE-CMD."
    "k" 'magit-section-backward
    "J" 'magit-section-forward-sibling
    "K" 'magit-section-backward-sibling
+   "t" 'magit-section-forward
+   "h" 'magit-section-backward
+   "T" 'magit-section-forward-sibling
+   "H" 'magit-section-backward-sibling
    "v" 'evil-magit/toggle
    "zz" 'magit-section-toggle
    "d" 'magit-discard
@@ -561,7 +621,9 @@ Return a list with the contents of the table cell."
   :bind
     (:map flycheck-error-list-mode-map
              ("j" . flycheck-error-list-next-error)
-             ("k" . flycheck-error-list-previous-error))
+             ("k" . flycheck-error-list-previous-error)
+             ("t" . flycheck-error-list-next-error)
+             ("h" . flycheck-error-list-previous-error))
   :config
     (my/override-flycheck-fn)
     (setq flycheck-check-syntax-automatically '(save new-line idle-change mode-enabled))
@@ -845,6 +907,8 @@ buffer."
    "b" 'eww-back-url
    "J" 'evil-scroll-down
    "K" 'evil-scroll-up
+   "T" 'evil-scroll-down
+   "H" 'evil-scroll-up
   )
   :config
   (setq shr-color-visible-luminance-min 90)
@@ -928,6 +992,15 @@ current window."
       (evil-set-initial-state 'calculator-mode 'emacs)
 
 )
+(use-package diff
+  :general
+  (:states '(normal visual)
+   :keymaps 'diff-mode-map
+   :prefix application-leader-key
+   "n" 'diff-hunk-next
+   "<return>" 'diff-apply-hunk
+   )
+  )
 (defun my/set-venv ()
   (interactive)
   (require 'projectile)
@@ -1009,10 +1082,16 @@ current window."
   (:keymaps 'web-mode-map
    :states '(normal)
    :prefix application-leader-key
-   "=" 'web-mode-buffer-indent))
+   "=" 'web-mode-buffer-indent
+   "r" 'my/eslint-format))
 (use-package js2-mode
   :ensure t
   :mode ("\\.js\\'" . js2-mode)
+  :general
+  (:states '(normal visual)
+   :keymaps 'js2-mode-map
+   :prefix application-leader-key
+   "r" 'my/eslint-format)
   :config
   (add-to-list 'company-backends 'company-tern)
 
@@ -1083,6 +1162,11 @@ current window."
 (use-package alchemist
   :ensure t
   :mode ("\\.ex[s]?\\'" . elixir-mode))
+  ;; (use-package evil-dvorak
+  ;;   :ensure t
+  ;;   :config
+  ;;   (global-evil-dvorak-mode 1)
+  ;; )
 (global-unset-key (kbd "C-SPC"))
 
 ;; leader key prefix shortcuts
@@ -1150,6 +1234,7 @@ current window."
   "ac" 'calculator
   "ad" 'dired-jump
   "ay" 'yas-new-snippet
+  "a=" 'diff
 
   ;; Inserts
   "i" '(:ignore t :which-key "Inserts")
@@ -1157,21 +1242,21 @@ current window."
 )
 
 
-(general-define-key
-  ";" 'evil-commentary
-  "/" 'swiper
-  "é" 'swiper)
+    (general-define-key
+      ";" 'evil-commentary
+      "/" 'swiper
+      "é" 'swiper)
 
-(general-define-key "`"
-  (general-key-dispatch 'evil-goto-mark
-    "`" 'my/goto-default-mark
-  ))
+    (general-define-key "`"
+      (general-key-dispatch 'evil-goto-mark
+        "`" 'my/goto-default-mark
+      ))
 
-(general-define-key
-  :keymaps '(evil-normal-state-map evil-motion-state-map)
-  ;; Folding
-  "za" 'evil-close-folds
-  "zz" 'evil-toggle-fold)
+    (general-define-key
+      :keymaps '(evil-normal-state-map evil-motion-state-map)
+      ;; Folding
+      "za" 'evil-close-folds
+      "zz" 'evil-toggle-fold)
 
 (add-hook 'prog-mode-hook 'fci-mode)
 (add-hook 'prog-mode-hook 'ya-chain-mode)

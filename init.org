@@ -84,35 +84,68 @@ Core extensions required by multiple packages and to load on startup
 Evil brings emacs closer to VIM by providing vim-like bindings globally
 *** Installation of Evil
 #+BEGIN_SRC emacs-lisp
-;; Install evil only if it's not there
-(unless (package-installed-p 'evil)
-   (package-refresh-contents)
-   (package-install 'evil))
+  ;; Install evil only if it's not there
+  (unless (package-installed-p 'evil)
+     (package-refresh-contents)
+     (package-install 'evil))
+
+  (unless (package-installed-p 'evil-dvorak)
+     (package-refresh-contents)
+     (package-install 'evil-dvorak))
 
 #+END_SRC
 *** Enabling evil globally
 Core module so we enable it globally
 
 #+BEGIN_SRC emacs-lisp
-;; Enable evil globally
-(require 'evil)
-(evil-mode 1)
+  ;; Enable evil globally
+  (require 'evil)
+  (evil-mode 1)
+  ;; (require 'evil-dvorak)
+  ;; (global-evil-dvorak-mode 1)
 
 #+END_SRC
 *** Unsetting some evil default commands
 If we want to be able to use some nice vim overriding we need to
 unbind them first.
 #+BEGIN_SRC emacs-lisp
-;; Unsetting some default evil commands, that I
-;; plan to use
-(require 'evil)
-(evil-mode 1)
+       ;; Unsetting some default evil commands, that I
+       ;; plan to use
+       (require 'evil)
+       (evil-mode 1)
 
-(define-key evil-motion-state-map (kbd "SPC") nil)
-(define-key evil-motion-state-map "," nil)
-(define-key evil-motion-state-map "zz" nil)
-(define-key evil-motion-state-map "za" nil)
-(define-key evil-normal-state-map (kbd "g,") nil)
+       (define-key evil-motion-state-map (kbd "SPC") nil)
+       (define-key evil-motion-state-map "," nil)
+       (define-key evil-motion-state-map "zz" nil)
+       (define-key evil-motion-state-map "za" nil)
+
+       (define-key evil-motion-state-map "h" 'evil-previous-line)
+       (define-key evil-motion-state-map "t" 'evil-next-line)
+       (define-key evil-motion-state-map "n" 'evil-backward-char)
+       (define-key evil-motion-state-map "s" 'evil-forward-char)
+
+       (define-key evil-normal-state-map "J" 'join-line)
+       (define-key evil-normal-state-map "s" 'evil-forward-char)
+       (define-key evil-normal-state-map "j" #'(lambda () (interactive) "join this line at the end of the line below" (join-line 1)))
+
+       ;; (define-key evil-visual-state-map "h" 'evil-previous-line)
+       ;; (define-key evil-visual-state-map "t" 'evil-next-line)
+       ;; (define-key evil-visual-state-map "n" 'evil-backward-char)
+       ;; (define-key evil-visual-state-map "s" 'evil-forward-char)
+     ;; (define-key evil-normal-state-map "\C-d" 'evil-delete-char)
+     ;; (define-key evil-insert-state-map "\C-d" 'evil-delete-char)
+     ;; (define-key evil-visual-state-map "\C-d" 'evil-delete-char)
+     ;; (define-key evil-visual-state-map "\M-x" 'execute-extended-command)
+     ;; (define-key evil-insert-state-map "\M-x" 'execute-extended-command)
+
+       (define-key evil-insert-state-map (kbd "C-d") 'evil-delete-backward-char)
+       (define-key evil-normal-state-map (kbd "g,") nil)
+
+   ;; (evil-define-key 'insert evil-dvorak-mode-map
+   ;;     (kbd "C-d") 'evil-delete-backward-char)
+  ;; (evil-define-key 'insert evil-dvorak-mode-map
+    ;;   (kbd "M-x") 'execute-extended-command)
+
 
 #+END_SRC
 *** Evil commentary
@@ -1660,11 +1693,11 @@ Provide multiple tools for elixir development
 
 * 9. Dvorak
 #+BEGIN_SRC emacs-lisp
-(use-package evil-dvorak
-  :ensure t
-  :config
-  (global-evil-dvorak-mode 1)
-)
+  ;; (use-package evil-dvorak
+  ;;   :ensure t
+  ;;   :config
+  ;;   (global-evil-dvorak-mode 1)
+  ;; )
 #+END_SRC
 * A. Global keyboard mapping
 Annex to regroup all keyboard mappings
@@ -1757,21 +1790,21 @@ Every key under the leader key should be defined here
 ** Global keys
 
 #+BEGIN_SRC emacs-lisp
-(general-define-key
-  ";" 'evil-commentary
-  "/" 'swiper
-  "é" 'swiper)
+    (general-define-key
+      ";" 'evil-commentary
+      "/" 'swiper
+      "é" 'swiper)
 
-(general-define-key "`"
-  (general-key-dispatch 'evil-goto-mark
-    "`" 'my/goto-default-mark
-  ))
+    (general-define-key "`"
+      (general-key-dispatch 'evil-goto-mark
+        "`" 'my/goto-default-mark
+      ))
 
-(general-define-key
-  :keymaps '(evil-normal-state-map evil-motion-state-map)
-  ;; Folding
-  "za" 'evil-close-folds
-  "zz" 'evil-toggle-fold)
+    (general-define-key
+      :keymaps '(evil-normal-state-map evil-motion-state-map)
+      ;; Folding
+      "za" 'evil-close-folds
+      "zz" 'evil-toggle-fold)
 
 #+END_SRC
 * B. General hooks
