@@ -79,6 +79,8 @@
      ;; (define-key evil-insert-state-map "\M-x" 'execute-extended-command)
 
        (define-key evil-insert-state-map (kbd "C-d") 'evil-delete-backward-char)
+       (define-key minibuffer-local-map (kbd "C-d") 'delete-backward-char)
+       (define-key minibuffer-local-completion-map (kbd "C-d") 'delete-backward-char)
        (define-key evil-normal-state-map (kbd "g,") nil)
 
    ;; (evil-define-key 'insert evil-dvorak-mode-map
@@ -174,6 +176,7 @@
     ("C-t" . ivy-next-line)
     ("C-S-H" . ivy-scroll-up-command)
     ("C-h" . ivy-previous-line)
+    ("C-d" . ivy-backward-delete-char)
     ("C-s" . ivy-alt-done)
     ("<C-return>" . ivy-immediate-done)
     ("C-n" . ivy-backward-kill-word))
@@ -973,6 +976,16 @@ current window."
          ;; `other-buffer' honors `buffer-predicate' so no need to filter
          (other-buffer current-buffer t)))))
 
+(defun my/counsel-imenu ()
+  "Open Imenu after setting a mark"
+  (interactive)
+  (push-mark (point) t nil)
+  (message "Pushed mark to ring")
+  (counsel-imenu))
+(defun my/pop-local-mark ()
+  "Convenience fn to pop to a previous mark in the buffer"
+  (interactive)
+  (set-mark-command t))
 ;; Function to reload editor
 (defun my/reload-emacs ()
     "Reload emacs config"
@@ -1041,7 +1054,9 @@ current window."
     :states '(normal)
     :keymaps 'python-mode-map
     :prefix application-leader-key
-    "vv" 'my/set-venv)
+    "vv" 'my/set-venv
+    ","  'my/pop-local-mark
+   )
    (add-hook 'python-mode-hook
      (lambda ()
        (progn
@@ -1194,6 +1209,7 @@ current window."
   "bc" 'my/kill-other-buffers
   "br" 'revert-buffer
   "TAB" 'spacemacs/alternate-buffer
+  "SPC" 'my/counsel-imenu
 
   ;; Files
   "f"  '(:ignore t :which-key "Files")

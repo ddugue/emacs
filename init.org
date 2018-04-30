@@ -139,6 +139,8 @@ unbind them first.
      ;; (define-key evil-insert-state-map "\M-x" 'execute-extended-command)
 
        (define-key evil-insert-state-map (kbd "C-d") 'evil-delete-backward-char)
+       (define-key minibuffer-local-map (kbd "C-d") 'delete-backward-char)
+       (define-key minibuffer-local-completion-map (kbd "C-d") 'delete-backward-char)
        (define-key evil-normal-state-map (kbd "g,") nil)
 
    ;; (evil-define-key 'insert evil-dvorak-mode-map
@@ -316,6 +318,7 @@ We configure and install ivy, which is the Engine
     ("C-t" . ivy-next-line)
     ("C-S-H" . ivy-scroll-up-command)
     ("C-h" . ivy-previous-line)
+    ("C-d" . ivy-backward-delete-char)
     ("C-s" . ivy-alt-done)
     ("<C-return>" . ivy-immediate-done)
     ("C-n" . ivy-backward-kill-word))
@@ -1414,6 +1417,24 @@ current window."
          (other-buffer current-buffer t)))))
 
 #+END_SRC
+*** Use Imenu to move into a buffor
+Open Imenu and register a mark
+
+#+BEGIN_SRC emacs-lisp
+(defun my/counsel-imenu ()
+  "Open Imenu after setting a mark"
+  (interactive)
+  (push-mark (point) t nil)
+  (message "Pushed mark to ring")
+  (counsel-imenu))
+#+END_SRC
+
+#+BEGIN_SRC emacs-lisp
+(defun my/pop-local-mark ()
+  "Convenience fn to pop to a previous mark in the buffer"
+  (interactive)
+  (set-mark-command t))
+#+END_SRC
 ** Emacs itself
 Tools and functions to work with emacs itself (so meta)
 *** Reload configs
@@ -1515,7 +1536,9 @@ TODO: Cleanup
     :states '(normal)
     :keymaps 'python-mode-map
     :prefix application-leader-key
-    "vv" 'my/set-venv)
+    "vv" 'my/set-venv
+    ","  'my/pop-local-mark
+   )
    (add-hook 'python-mode-hook
      (lambda ()
        (progn
@@ -1738,6 +1761,7 @@ Every key under the leader key should be defined here
   "bc" 'my/kill-other-buffers
   "br" 'revert-buffer
   "TAB" 'spacemacs/alternate-buffer
+  "SPC" 'my/counsel-imenu
 
   ;; Files
   "f"  '(:ignore t :which-key "Files")
